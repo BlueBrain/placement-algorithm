@@ -9,7 +9,7 @@ Layer = getLayerDefinition();
     
     %*********************defining the lower boundary
    
-      if strcmp (cType, 'L2PC') | strcmp (cType, 'L3PC')| strcmp (cType,'L4PC')|strcmp (cType,'L5CSPC')| strcmp (cType,'L5CHPC')
+      if strcmp (cType, 'L2PC') || strcmp (cType, 'L3PC')|| strcmp (cType,'L4PC')||strcmp (cType,'L5CSPC')|| strcmp (cType,'L5CHPC')
          lowerBoundary= Layer(1).From;            
          elseif strcmp (cType, 'L4SP')
              lowerBoundary = Layer(3).From;
@@ -23,7 +23,7 @@ Layer = getLayerDefinition();
     while k >=1
 
         dH = dendriteHeights+ k * binHeight; %start with neurons at last bin
-        t = find(dH(ind)<lowerBoundary) ;%constraint not satisfied
+        t = find(dH(ind)<lowerBoundary) ;    %constraint not satisfied
        
         
         if (~isempty(t))

@@ -1,38 +1,46 @@
-function belowC= belowConstraintNeuronsDnew (minBin,  maxHeightDendrite, neuronName, neuronTypes, path)
+function belowC= belowConstraintNeuronsDnew (minBin,  maxHeightDendrite, neuronName,NeuronDB)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % identifies neurons with dendrites that do not reach their respective lower boundary
-% format of output file: name   layer   type    difference
+% format of output file: name   layer   mType    difference
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 disp('**********************below constraint:************************')
 Layer = getLayerDefinition();
 
-tNB= length(neuronTypes);
+
+
+
 
 %initialize
 pI=[];
 
 % get info needed from neuronDB file
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-fid = fopen(path);
-A = textscan(fid,'%s%d%s%f');
+fid = fopen(NeuronDB);
+
+A= textscan(fid,'%s%d%s%s%s');
+
 neuron = A{1,1};
 layerNB = A{1,2};
-type = A{1,3};
-fclose(fid)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+mType = A{1,3};
+eType = A{1,4};
+MEfilename = A{1,5}; 
+fclose(fid);
+
+neuronTypes = unique(mType);
+
+tNB= length(neuronTypes);
 
 
-% write on output file the name, layer and type of neurones that do not satisfy the constraint
+% write on output file the name, layer and mType of neurones that do not satisfy the constraint
 % indicate by how much the axone is above the constraint
 fid = fopen('belowConstraintDNeuronDB.txt','wt');
 
 counter=0;%keeps track of te number of neurons below thei constraint
 
 for i=1:tNB    
-   % current Type
+   % current mType
     cType = neuronTypes{i};    
-    cTypeIndices =strmatch(cType,type,'exact');
+    cTypeIndices =strmatch(cType,mType,'exact');
     %%%%%%%%%%%%%%%%%%%%%%%if clones removed%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %       i= strmatch ('L', neuron(cTypeIndices));
 %       cTypeIndices(i)=[];
@@ -65,8 +73,8 @@ for i=1:tNB
         difference(k) =pI(k)- lowerBoundary;
         
              if (difference(k)<0)
-                 fprintf(fid,'%s\t%d\t%s\t%.2f\n',neuron{cIndex},layerNB(cIndex),type{cIndex},difference(k));
-                 fprintf(1,'%s\t%d\t%s\t%.2f\n',neuron{cIndex},layerNB(cIndex),type{cIndex},difference(k));
+                 fprintf(fid,'%s\t%d\t%s\t%.2f\n',neuron{cIndex},layerNB(cIndex),mType{cIndex},difference(k));
+                 fprintf(1,'%s\t%d\t%s\t%.2f\n',neuron{cIndex},layerNB(cIndex),mType{cIndex},difference(k));
                  belowC(cIndex)=cIndex; 
                  counter = counter +1;
              end

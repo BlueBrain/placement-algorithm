@@ -1,41 +1,46 @@
-function aboveC= aboveConstraintNeuronsD (maxBin, maxHeight, neuronsNB, maxHeightDendrite, maxHeightAxon, neuronName,path)
+function aboveC= aboveConstraintNeuronsD (maxBin, maxHeight,maxHeightDendrite, maxHeightAxon, neuronName,NeuronDB)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % identifies neurons with dendrites crossing their respective upper
 % boundary
-% format of output file: name   layer   type    excess
+% format of output file: name   layer   mType    excess
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 disp('**********************above constraint:************************')
 
 Layer = getLayerDefinition();
 
-%Types of neurons to be considered 
-neuronTypes = getTypes(path);
+
+
+fid = fopen(NeuronDB);
+
+A= textscan(fid,'%s%d%s%s%s');
+
+neuron = A{1,1};
+layerNB = A{1,2};
+mType = A{1,3};
+eType = A{1,4};
+MEfilename = A{1,5}; 
+fclose(fid);
+
+neuronTypes = unique(mType);
+
 
 TypesNB= length(neuronTypes);
 
 %initialize
 pI=[];
 
-% get info needed from neuronDB file
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-fid = fopen(path);
-A = textscan(fid,'%s%d%s%f');
-neuron = A{1,1};
-layerNB = A{1,2};
-type = A{1,3};
-fclose(fid);
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 counter =0; %keeps track of the number of neurons above their constraint
 
-% write on output file the name, layer and type of neurones that do not satisfy the constraint
+% write on output file the name, layer and mType of neurones that do not satisfy the constraint
 % indicate by how much the axone is above the constraint
 fid = fopen('aboveConstraintDNeuronDB.txt','wt');
 for i=1:TypesNB    
-   % current Type
+   % current mType
     cType = neuronTypes{i};    
-    cTypeIndices =strmatch(cType,type,'exact');
+    cTypeIndices =strmatch(cType,mType,'exact');
    
     %%%%%%%%%%%%%%%%%%%%%%%if clones removed%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %        i= strmatch ('L', neuron(cTypeIndices));
@@ -69,8 +74,8 @@ for i=1:TypesNB
             excess(k) =pI(k)- upperboundary;
         
          if (excess(k)>0)
-             fprintf(fid,'%s\t%d\t%s\t%.2f\n',neuron{cIndex},layerNB(cIndex),type{cIndex},excess(k));
-             fprintf(1,'%s\t%d\t%s\t%.2f\n',neuron{cIndex},layerNB(cIndex),type{cIndex},excess(k));
+             fprintf(fid,'%s\t%d\t%s\t%.2f\n',neuron{cIndex},layerNB(cIndex),mType{cIndex},excess(k));
+             fprintf(1,'%s\t%d\t%s\t%.2f\n',neuron{cIndex},layerNB(cIndex),mType{cIndex},excess(k));
              aboveC(cIndex)=cIndex;
              counter = counter +1;
          end
