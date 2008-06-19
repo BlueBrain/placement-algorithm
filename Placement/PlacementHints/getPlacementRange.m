@@ -125,13 +125,12 @@ end
 
 %printing on a file the neurons which do not satisfy their maxHeight
 %constraint
-%aboveC = aboveConstraintNeuronsD (maxBin, maxHeight,maxHeightDendrite, maxHeightAxon, neuronName, NeuronDB);
-
+aboveC = aboveConstraintNeuronsD (maxBin, maxHeight,maxHeightDendrite, maxHeightAxon, neuronName, NeuronDB);
 %printing on a file the neurons which do not satisfy their lowerBoundary constraint
-%belowC = belowConstraintNeuronsDnew (minBin , maxHeightDendrite, neuronName,NeuronDB);
+belowC = belowConstraintNeuronsDnew (minBin , maxHeightDendrite, neuronName,NeuronDB);
 
 maxBin = maxBin/binsNB + 1/(binsNB*2);
-minBin = (minBin-1)/binsNB - 1/(binsNB*2);
+minBin = (minBin)/binsNB - 1/(binsNB*2);
 
 maxBin(maxBin>1)= 1;
 minBin(minBin<0)= 0;

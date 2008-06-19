@@ -22,7 +22,7 @@ binIterator = 0;
 
 
 
-while binIterator <=binsNB
+while binIterator < binsNB
 
     dendriteHeight = dendriteHeight - binHeight; %start with neurons at last bin
     
