@@ -1,6 +1,6 @@
 function getPlacementRange (morphologyParameters, NeuronDB)
 %
-% This is a customized version of the 
+% This is a customized version of the
 %
 % Reads the morpho parameters file and extracts the parameters from it and
 % then assigns an index to the neuron in the neuronDB.dat file. The index
@@ -51,7 +51,7 @@ neuron = A{1,1};
 layerNB = A{1,2};
 mType = A{1,3};
 eType = A{1,4};
-MEfilename = A{1,5}; 
+MEfilename = A{1,5};
 fclose(fid);
 
 neuronMTypes = unique(mType);
@@ -81,73 +81,72 @@ MPIndices= zeros(1, neuronsNB);
 
 %****************** Go through each layer
 
- for currentLayer = 1:6
-     
+for currentLayer = 1:6
+
+
+    if currentLayer == 5
+
+
+    end
+
+    % indices of neurons in that given layer
     currentLayerIndices =find (layerNB==currentLayer);
-    cLayerNB = length(currentLayerIndices);
-        
+
     %get the binning information for this layer
     binHeight = (Layer(currentLayer).To-Layer(currentLayer).From)/binsNB;
-    
-    %reset the morphology Indices
-     MPIndicesTemp=[];
- 
-    %to get corresponding indices of neurones with specific mType in 
-    %morphology file   
+
+    %to get corresponding indices of neurones with specific mType in
+    %morphology file
     if ~isempty(currentLayerIndices)
-    MPIndicesTemp= getMorphIndices(currentLayerIndices, neuron, neuronName);
-    
-    dendriteHeights = maxHeightDendrite(MPIndicesTemp);
-    dendriteHeights = dendriteHeights + Layer(currentLayer).From; 
-        
-    maxBinTemp= [];
-    minBinTemp=[];
 
-   
-    %% depending on mType get the minBin and the maxBin
-    Types= unique(mType(currentLayerIndices));
-       for o= 1: length (Types)
-           currentType= Types(o);
-           currentIndices =strmatch(currentType,mType,'exact');           
-           ind= location2 (currentLayerIndices, layerNB, currentIndices, MPIndices); %obtain indices of specific mType in specific layer
-           c= length (ind);
-           i = 1:c;   
-           
-           %get minBin
-           minBinTemp(ind)= getMinBinnew(currentType, i, binsNB, dendriteHeights(ind), binHeight);
-           %% get maxBin
-           maxBinTemp(ind)= getMaxBin (currentType, binsNB,dendriteHeights(ind), binHeight, i, maxHeight);
-       end
-   
-    MPIndices(currentLayerIndices)= MPIndicesTemp;
-    maxBin(currentLayerIndices) = maxBinTemp;
-    
-    minBin(currentLayerIndices)= minBinTemp;
-    
-    end      
- end
+        MPIndices= getMorphIndices(currentLayerIndices, neuron, neuronName);
+
+        for i = 1:length(MPIndices)
 
 
-%printing on a file the neurons which do not satisfy their maxHeight constraint
-aboveC = aboveConstraintNeuronsD (maxBin, maxHeight,maxHeightDendrite, maxHeightAxon, neuronName, NeuronDB);
+            neuronIndex =  (currentLayerIndices(i));
+            morphologyIndex = MPIndices(i);
+
+
+            if neuronIndex == 761
+
+                disp('Here')
+
+            end
+            maxBin(neuronIndex) = getMaxBinModified (binsNB,binHeight,maxHeight,max(maxHeightDendrite(morphologyIndex),maxHeightAxon(morphologyIndex)) + Layer(currentLayer).From,mType(neuronIndex));
+            minBin(neuronIndex) = getMinBinModified (binsNB,binHeight,maxHeightDendrite(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex));
+
+        end
+
+    end
+
+end
+
+
+%printing on a file the neurons which do not satisfy their maxHeight
+%constraint
+%aboveC = aboveConstraintNeuronsD (maxBin, maxHeight,maxHeightDendrite, maxHeightAxon, neuronName, NeuronDB);
 
 %printing on a file the neurons which do not satisfy their lowerBoundary constraint
-belowC = belowConstraintNeuronsDnew (minBin , maxHeightDendrite, neuronName,NeuronDB);
+%belowC = belowConstraintNeuronsDnew (minBin , maxHeightDendrite, neuronName,NeuronDB);
 
 maxBin = maxBin/binsNB + 1/(binsNB*2);
 minBin = (minBin-1)/binsNB - 1/(binsNB*2);
 
- maxBin(maxBin>1)= 1;
- minBin(minBin<0)= 0;
- 
+maxBin(maxBin>1)= 1;
+minBin(minBin<0)= 0;
 
-    
+
+
 %********************************obtain the bin hint for all neurons and insure uniform distribution
-  
+
 
 %generate newNeuronDB with placement hints
- fid = fopen('newNeuronDBNew.dat','w'); 
- for i=1:length(neuron)
-   fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%.2f\t%.2f\n',neuron{i},layerNB(i),mType{i},eType{i},MEfilename{i},minBin(i),maxBin(i));
- end
+fid = fopen('newNeuronDBNew.dat','w');
+for i=1:length(neuron)
+    if strcmp(eType{i},'cAD')
+        eType{i} = 'cADpyr';
+        fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%.2f\t%.2f\n',neuron{i},layerNB(i),mType{i},eType{i},MEfilename{i},minBin(i),maxBin(i));
+    end
+end
 

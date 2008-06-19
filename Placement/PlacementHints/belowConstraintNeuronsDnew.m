@@ -53,15 +53,17 @@ for i=1:tNB
     end
     
     L= length (cTypeIndices);
-    MPIndices =[];    
     MPIndices= getMorphIndices(cTypeIndices, neuron, neuronName);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%define lower boundary%%%%%%%%%%%%%%%%%%%%
-      if strcmp (cType, 'L2PC') | strcmp (cType, 'L3PC')| strcmp (cType,'L4PC')|strcmp (cType,'L5CSPC')| strcmp (cType,'L5CHPC')
-             lowerBoundary= Layer(1).From;
-      else
-           lowerBoundary=0;
-       end
+     
+if strcmp (cType, 'L2PC') || strcmp (cType, 'L3PC')|| strcmp (cType,'L4PC')||strcmp (cType,'L5CSPC')|| strcmp (cType,'L5CHPC')
+    lowerBoundary= (Layer(1).From + Layer(1).To)/2;
+elseif strcmp (cType, 'L4SP')
+    lowerBoundary = (Layer(3).From+Layer(3).To)/2;
+else
+    lowerBoundary=0;
+end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     for k=1:L     
