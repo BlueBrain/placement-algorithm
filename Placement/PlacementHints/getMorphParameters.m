@@ -22,6 +22,7 @@ for i=1:filesNB
     fileName = list(i).name;
     %get the file path
     filePath = [sourcePath '/' list(i).name];
+    
     %get the information for this neuron
     Neuron = getNeuronInfo(filePath);
     

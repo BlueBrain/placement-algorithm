@@ -15,7 +15,7 @@ pI=[];
 % get info needed from neuronDB file
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 fid = fopen(path);
-A = textscan(fid,'%s%d%s');
+A = textscan(fid,'%s%d%s%f');
 neuron = A{1,1};
 layerNB = A{1,2};
 type = A{1,3};
