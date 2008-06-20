@@ -145,7 +145,8 @@ fid = fopen('newNeuronDBNew.dat','w');
 for i=1:length(neuron)
     if strcmp(eType{i},'cAD')
         eType{i} = 'cADpyr';
-        fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%.2f\t%.2f\n',neuron{i},layerNB(i),mType{i},eType{i},MEfilename{i},minBin(i),maxBin(i));
     end
+        fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%.2f\t%.2f\n',neuron{i},layerNB(i),mType{i},eType{i},MEfilename{i},minBin(i),maxBin(i));
+   
 end
 
