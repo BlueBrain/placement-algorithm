@@ -110,11 +110,11 @@ for currentLayer = 1:6
             morphologyIndex = MPIndices(i);
             neuron2morphology(neuronIndex) = morphologyIndex;
 
-            if neuronIndex == 1
+            %if strcmp(mType(neuronIndex),'MC')
 
-                disp('Here')
+             %   fprintf(1,' %s  \t\t Dendrite : %.2f (%.2f),Axon : %.2f (%.2f) Layer : %d\n', neuron{neuronIndex}, maxHeightDendrite(morphologyIndex)+Layer(currentLayer).From,maxHeightDendrite(morphologyIndex),maxHeightAxon(morphologyIndex)+Layer(currentLayer).From,maxHeightAxon(morphologyIndex),currentLayer)
 
-            end
+            %end
             maxBin(neuronIndex) = getMaxBinModified (binsNB,binHeight,maxHeight,maxHeightDendrite(morphologyIndex)+ Layer(currentLayer).From, maxHeightAxon(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex));
             minBin(neuronIndex) = getMinBinModified (binsNB,binHeight,maxHeightDendrite(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex));
 
@@ -132,10 +132,18 @@ end
 %belowC = belowConstraintNeuronsDnew (minBin , maxHeightDendrite, neuronName,NeuronDB);
 
 neuronsAboveConstraint = find(maxBin==0);
+
+errf = fopen('eliminatedNeurons.dat','w');
 for i = 1:length(neuronsAboveConstraint)
-    cIndex = neuronsAboveConstraint(i);         
-    fprintf(1,'%s\t%d\t%s\n',neuron{cIndex},layerNB(cIndex),mType{cIndex});
+    neuronIndex = neuronsAboveConstraint(i);         
+    morphologyIndex = neuron2morphology(neuronIndex);
+    %fprintf(1,'%s\t%d\t%s\n',neuron{cIndex},layerNB(cIndex),mType{cIndex});
+
+  fprintf(errf,' %s  \t\t Dendrite : %.2f (%.2f),Axon : %.2f (%.2f) Layer : %d\n', neuron{neuronIndex}, maxHeightDendrite(morphologyIndex)+Layer(layerNB(neuronIndex)).From,maxHeightDendrite(morphologyIndex),maxHeightAxon(morphologyIndex)+Layer(layerNB(neuronIndex)).From,maxHeightAxon(morphologyIndex),currentLayer);
 end
+
+fclose(errf);
+
              remainingNeurons = setdiff(1:neuronsNB,neuronsAboveConstraint);
 
 
@@ -148,10 +156,7 @@ fprintf(1,'%d Neurons Eliminated\n',length(neuronsAboveConstraint));
 fid = fopen('newNeuronDBNew.dat','w');
 for i=1:length(remainingNeurons)
     index = remainingNeurons(i);
-    if strcmp(eType{index},'cAD')
-        eType{index} = 'cADpyr';
-    end
-        fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%.2f\t%.2f\n',neuron{index},layerNB(index),mType{index},eType{index},MEfilename{index},minBin(index),maxBin(index));
-   
+       fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%.2f\t%.2f\n',neuron{index},layerNB(index),mType{index},eType{index},MEfilename{index},minBin(index),maxBin(index));
+    
 end
 
