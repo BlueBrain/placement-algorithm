@@ -67,7 +67,9 @@ placementIndex = ones(1,neuronsNB)*-1; %intialize placement index to -1
 %THE PIA IS NOW DEFINED AS THE HIGHEST DENDRITES OF LAYER 5 /// NOT L5CSPC
 %CELLS, WITH THEIR SOMAS PLACED AT THE BOTTOM OF THE LAYER (PLUS A BIN HEIGHT)
 %maxHeight= getConstraint (neuron, neuronName, maxHeightDendrite,binsNB,Layer,layerNB);
-maxHeight = Layer(1).To;
+ morphologiesIndex = unique(getMorphIndices(find (layerNB==1),neuron,neuronName)); 
+maxHeight = Layer(1).From + max(maxHeightDendrite(morphologiesIndex));
+fprintf(1,'Max Height of the Column = %.2f \n',maxHeight);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % figure
@@ -108,7 +110,7 @@ for currentLayer = 1:6
             morphologyIndex = MPIndices(i);
             neuron2morphology(neuronIndex) = morphologyIndex;
 
-            if neuronIndex == 649
+            if neuronIndex == 1
 
                 disp('Here')
 
