@@ -13,7 +13,7 @@ function parameters = getMorphParametersnewH5(sourcePath,outputPath)
 
 listFilesArgument = [sourcePath '/*.h5'];
 list = dir(listFilesArgument);
-filesNB = length(list);
+filesNB = length(list)
 
 outputFilePath = [outputPath '/MorphoParameters.txt'];
 outputFile = fopen(outputFilePath,'w');
