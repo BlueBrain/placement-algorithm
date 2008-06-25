@@ -1,4 +1,4 @@
-function aboveC= aboveConstraintNeuronsD (maxBin, maxHeight,maxHeightDendrite, maxHeightAxon, neuronName,NeuronDB)
+function aboveC= aboveConstraintNeuronsD (maxBin, maxHeight,maxHeightDendrite, neuronName,NeuronDB)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % identifies neurons with dendrites crossing their respective upper
 % boundary

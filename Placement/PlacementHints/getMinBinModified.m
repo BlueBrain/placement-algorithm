@@ -16,26 +16,9 @@ else
     lowerBoundary=0;
 end
 
-dendriteHeight = dendriteHeight + binsNB * binHeight;
-
-binIterator = 0;
-
-
-
-while binIterator < binsNB
-
-    dendriteHeight = dendriteHeight - binHeight; %start with neurons at last bin
-    
-    if dendriteHeight<lowerBoundary
-        break
-    end
-
-    binIterator=binIterator+1;
-
+minBin=(lowerBoundary-dendriteHeight)/(binsNB*binHeight);
+if minBin<0
+    minBin = 0;
+elseif minBin>1
+    minBin = 1;
 end
-
-
-
-minBin = binsNB-binIterator;
-
-

@@ -66,8 +66,8 @@ placementIndex = ones(1,neuronsNB)*-1; %intialize placement index to -1
 
 %THE PIA IS NOW DEFINED AS THE HIGHEST DENDRITES OF LAYER 5 /// NOT L5CSPC
 %CELLS, WITH THEIR SOMAS PLACED AT THE BOTTOM OF THE LAYER (PLUS A BIN HEIGHT)
-maxHeight= getConstraint (neuron, neuronName, maxHeightDendrite,binsNB,Layer,layerNB);
-
+%maxHeight= getConstraint (neuron, neuronName, maxHeightDendrite,binsNB,Layer,layerNB);
+maxHeight = Layer(1).To;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % figure
@@ -77,7 +77,7 @@ maxHeight= getConstraint (neuron, neuronName, maxHeightDendrite,binsNB,Layer,lay
 %initialize
 maxBin = ones(1,neuronsNB)*-1;
 minBin = ones(1,neuronsNB)*-1;
-MPIndices= zeros(1, neuronsNB);
+neuron2morphology= zeros(1, neuronsNB);
 
 %****************** Go through each layer
 
@@ -106,14 +106,14 @@ for currentLayer = 1:6
 
             neuronIndex =  (currentLayerIndices(i));
             morphologyIndex = MPIndices(i);
+            neuron2morphology(neuronIndex) = morphologyIndex;
 
-
-            if neuronIndex == 761
+            if neuronIndex == 649
 
                 disp('Here')
 
             end
-            maxBin(neuronIndex) = getMaxBinModified (binsNB,binHeight,maxHeight,max(maxHeightDendrite(morphologyIndex),maxHeightAxon(morphologyIndex)) + Layer(currentLayer).From,mType(neuronIndex));
+            maxBin(neuronIndex) = getMaxBinModified (binsNB,binHeight,maxHeight,maxHeightDendrite(morphologyIndex)+ Layer(currentLayer).From, maxHeightAxon(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex));
             minBin(neuronIndex) = getMinBinModified (binsNB,binHeight,maxHeightDendrite(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex));
 
         end
@@ -125,28 +125,31 @@ end
 
 %printing on a file the neurons which do not satisfy their maxHeight
 %constraint
-aboveC = aboveConstraintNeuronsD (maxBin, maxHeight,maxHeightDendrite, maxHeightAxon, neuronName, NeuronDB);
+%aboveC = aboveConstraintNeuronsD (maxBin, maxHeight,max(maxHeightDendrite , maxHeightAxon), neuronName, NeuronDB);
 %printing on a file the neurons which do not satisfy their lowerBoundary constraint
-belowC = belowConstraintNeuronsDnew (minBin , maxHeightDendrite, neuronName,NeuronDB);
+%belowC = belowConstraintNeuronsDnew (minBin , maxHeightDendrite, neuronName,NeuronDB);
 
-maxBin = maxBin/binsNB + 1/(binsNB*2);
-minBin = (minBin)/binsNB - 1/(binsNB*2);
+neuronsAboveConstraint = find(maxBin==0);
+for i = 1:length(neuronsAboveConstraint)
+    cIndex = neuronsAboveConstraint(i);         
+    fprintf(1,'%s\t%d\t%s\n',neuron{cIndex},layerNB(cIndex),mType{cIndex});
+end
+             remainingNeurons = setdiff(1:neuronsNB,neuronsAboveConstraint);
 
-maxBin(maxBin>1)= 1;
-minBin(minBin<0)= 0;
 
-
+fprintf(1,'%d Neurons Eliminated\n',length(neuronsAboveConstraint));
 
 %********************************obtain the bin hint for all neurons and insure uniform distribution
 
 
 %generate newNeuronDB with placement hints
 fid = fopen('newNeuronDBNew.dat','w');
-for i=1:length(neuron)
-    if strcmp(eType{i},'cAD')
-        eType{i} = 'cADpyr';
+for i=1:length(remainingNeurons)
+    index = remainingNeurons(i);
+    if strcmp(eType{index},'cAD')
+        eType{index} = 'cADpyr';
     end
-        fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%.2f\t%.2f\n',neuron{i},layerNB(i),mType{i},eType{i},MEfilename{i},minBin(i),maxBin(i));
+        fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%.2f\t%.2f\n',neuron{index},layerNB(index),mType{index},eType{index},MEfilename{index},minBin(index),maxBin(index));
    
 end
 
