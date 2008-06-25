@@ -66,10 +66,26 @@ placementIndex = ones(1,neuronsNB)*-1; %intialize placement index to -1
 
 %THE PIA IS NOW DEFINED AS THE HIGHEST DENDRITES OF LAYER 5 /// NOT L5CSPC
 %CELLS, WITH THEIR SOMAS PLACED AT THE BOTTOM OF THE LAYER (PLUS A BIN HEIGHT)
+
+%METHOD 1
 %maxHeight= getConstraint (neuron, neuronName, maxHeightDendrite,binsNB,Layer,layerNB);
- morphologiesIndex = unique(getMorphIndices(find (layerNB==1),neuron,neuronName)); 
-maxHeight = Layer(1).From + max(maxHeightDendrite(morphologiesIndex));
+ 
+
+%METHOD 2
+%morphologiesIndex = unique(getMorphIndices(find (layerNB==1),neuron,neuronName)); 
+%maxHeight = Layer(1).From + max(maxHeightDendrite(morphologiesIndex));
+
+%METHOD 3
+%morphIndex = strmatch('R-tkb060329a2_ch1_cc1_o_db_60x_2',neuronName,'exact');
+%maxHeight = maxHeightAxon(morphIndex)+10;
+
+maxHeight = Layer(1).To;
+
 fprintf(1,'Max Height of the Column = %.2f \n',maxHeight);
+
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % figure
@@ -137,15 +153,14 @@ errf = fopen('eliminatedNeurons.dat','w');
 for i = 1:length(neuronsAboveConstraint)
     neuronIndex = neuronsAboveConstraint(i);         
     morphologyIndex = neuron2morphology(neuronIndex);
-    %fprintf(1,'%s\t%d\t%s\n',neuron{cIndex},layerNB(cIndex),mType{cIndex});
 
-  fprintf(errf,' %s  \t\t Dendrite : %.2f (%.2f),Axon : %.2f (%.2f) Layer : %d\n', neuron{neuronIndex}, maxHeightDendrite(morphologyIndex)+Layer(layerNB(neuronIndex)).From,maxHeightDendrite(morphologyIndex),maxHeightAxon(morphologyIndex)+Layer(layerNB(neuronIndex)).From,maxHeightAxon(morphologyIndex),currentLayer);
+  fprintf(errf,' %s  \t\t Dendrite : %.2f (%.2f),Axon : %.2f (%.2f)  %s Layer : %d\n', neuron{neuronIndex}, maxHeightDendrite(morphologyIndex)+Layer(layerNB(neuronIndex)).From-maxHeight,maxHeightDendrite(morphologyIndex),maxHeightAxon(morphologyIndex)+Layer(layerNB(neuronIndex)).From-maxHeight,maxHeightAxon(morphologyIndex),mType{neuronIndex},layerNB(neuronIndex));
 end
 
 fclose(errf);
 
-             remainingNeurons = setdiff(1:neuronsNB,neuronsAboveConstraint);
-
+  %           remainingNeurons = setdiff(1:neuronsNB,neuronsAboveConstraint);
+remainingNeurons = 1:neuronsNB;
 
 fprintf(1,'%d Neurons Eliminated\n',length(neuronsAboveConstraint));
 
@@ -153,10 +168,10 @@ fprintf(1,'%d Neurons Eliminated\n',length(neuronsAboveConstraint));
 
 
 %generate newNeuronDB with placement hints
-fid = fopen('newNeuronDBNew.dat','w');
+fid = fopen('newNeuronDBAllincluded.dat','w');
 for i=1:length(remainingNeurons)
     index = remainingNeurons(i);
-       fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%.2f\t%.2f\n',neuron{index},layerNB(index),mType{index},eType{index},MEfilename{index},minBin(index),maxBin(index));
+       fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%.2f\t%.2f\n ',neuron{index},layerNB(index),mType{index},eType{index},MEfilename{index},minBin(index),maxBin(index));
     
 end
 
