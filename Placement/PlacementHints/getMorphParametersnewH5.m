@@ -1,4 +1,4 @@
-function parameters = getMorphParameters(sourcePath,outputPath)
+function parameters = getMorphParametersnewH5(sourcePath,outputPath)
 %
 %Writes the Morphology Parameters of all h5 files in a directory to a file
 %
@@ -28,7 +28,8 @@ for i=1:filesNB
     filePath = [sourcePath '/' list(i).name];
     
     %get the information for this neuron
-    Neuron = getNeuronInfo(filePath);
+    [RaveledNeuron URaveledNeuron RepairedNeuron Soma ApicalPoint n] = loadNewFileFormat(filePath);
+    Neuron = RepairedNeuron;
     
     %get the BRANCH Indices
     axonBranchIndices =find(Neuron.typeInfo==1);
