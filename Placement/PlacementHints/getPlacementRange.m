@@ -147,11 +147,24 @@ end
 %printing on a file the neurons which do not satisfy their lowerBoundary constraint
 %belowC = belowConstraintNeuronsDnew (minBin , maxHeightDendrite, neuronName,NeuronDB);
 
+
+
+%%%%%%%%%%%%%%%%% REMOVING ALL NEURONS THAT EXCEED >THE HIGHEST BIN EXCEPT
+%%%%%%%%%%%%%%%%% FOR THE LAYER 2 MARTINOTTI CELLS
 neuronsAboveConstraint = find(maxBin==0);
+martinottis = strmatch('MC',mType);
+layer2 = find(layerNB ==2);
+
+layer2martinottis = intersect(layer2,martinottis);
+
+removeCells = setdiff(neuronsAboveConstraint,layer2martinottis);
+
+
+
 
 errf = fopen('eliminatedNeurons.dat','w');
-for i = 1:length(neuronsAboveConstraint)
-    neuronIndex = neuronsAboveConstraint(i);         
+for i = 1:length(removeCells)
+    neuronIndex = removeCells(i);         
     morphologyIndex = neuron2morphology(neuronIndex);
 
   fprintf(errf,' %s  \t\t Dendrite : %.2f (%.2f),Axon : %.2f (%.2f)  %s Layer : %d\n', neuron{neuronIndex}, maxHeightDendrite(morphologyIndex)+Layer(layerNB(neuronIndex)).From-maxHeight,maxHeightDendrite(morphologyIndex),maxHeightAxon(morphologyIndex)+Layer(layerNB(neuronIndex)).From-maxHeight,maxHeightAxon(morphologyIndex),mType{neuronIndex},layerNB(neuronIndex));
@@ -159,8 +172,8 @@ end
 
 fclose(errf);
 
-  %           remainingNeurons = setdiff(1:neuronsNB,neuronsAboveConstraint);
-remainingNeurons = 1:neuronsNB;
+  remainingNeurons = setdiff(1:neuronsNB,removeCells);
+ %remainingNeurons = 1:neuronsNB;
 
 fprintf(1,'%d Neurons Eliminated\n',length(neuronsAboveConstraint));
 
@@ -168,7 +181,7 @@ fprintf(1,'%d Neurons Eliminated\n',length(neuronsAboveConstraint));
 
 
 %generate newNeuronDB with placement hints
-fid = fopen('newNeuronDBAllincluded.dat','w');
+fid = fopen('newNeuronDB.dat','w');
 for i=1:length(remainingNeurons)
     index = remainingNeurons(i);
        fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%.2f\t%.2f\n ',neuron{index},layerNB(index),mType{index},eType{index},MEfilename{index},minBin(index),maxBin(index));
