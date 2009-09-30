@@ -15,21 +15,27 @@ listFilesArgument = [sourcePath '/*.h5'];
 list = dir(listFilesArgument);
 filesNB = length(list);
 
-outputFilePath = [outputPath '/MorphoParameters.txt'];
+outputFilePath = [outputPath '/MorphoParameters_Sept30.txt'];
 outputFile = fopen(outputFilePath,'w');
 
 
 
 
 for i=1:filesNB
+    
     %get the file name
     fileName = list(i).name;
     %get the file path
     filePath = [sourcePath '/' list(i).name];
     
+    try
     %get the information for this neuron
     Neuron = getNeuronInfo(filePath);
-    
+    catch
+        
+       fileName 
+       continue
+    end
     %get the BRANCH Indices
     axonBranchIndices =find(Neuron.typeInfo==1);
     dendriteBranchIndices = find(Neuron.typeInfo==2 | Neuron.typeInfo==3);

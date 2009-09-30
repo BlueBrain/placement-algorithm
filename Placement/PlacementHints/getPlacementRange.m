@@ -132,7 +132,8 @@ for currentLayer = 1:6
 
             %end
             maxBin(neuronIndex) = getMaxBinModified (binsNB,binHeight,maxHeight,maxHeightDendrite(morphologyIndex)+ Layer(currentLayer).From, maxHeightAxon(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex));
-            minBin(neuronIndex) = getMinBinModified (binsNB,binHeight,maxHeightDendrite(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex));
+            %minBin(neuronIndex) = getMinBinModified (binsNB,binHeight,maxHeightDendrite(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex));
+            minBin(neuronIndex) = getMinBinModified_Sept30 (binsNB,binHeight,maxHeightDendrite(morphologyIndex) + Layer(currentLayer).From,maxHeightAxon(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex));
 
         end
 

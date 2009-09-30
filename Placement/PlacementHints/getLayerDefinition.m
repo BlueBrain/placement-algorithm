@@ -46,30 +46,26 @@ fraction = 1500.00/1340.00;
 
  
  
-Layer(6).From = 0*fraction;
-Layer(6).To = 380*fraction;
+Layer(6).From = 0;
+Layer(6).To = 445.3752;
 
-Layer(5).From = 380*fraction;
-Layer(5).To = 710*fraction;
+Layer(5).From = 445.3752;
+Layer(5).To = 814.7848;
 
-Layer(4).From = 710*fraction;
-Layer(4).To = 880*fraction;
+Layer(4).From = 814.7848;
+Layer(4).To = 1005.0736;
 
-Layer(3).From = 880*fraction;
-Layer(3).To = 1070*fraction;
+Layer(3).From = 1005.376;
+Layer(3).To = 1217.752;
 
-Layer(2).From = 1070*fraction;
-Layer(2).To = 1220*fraction;
+Layer(2).From = 1217.752;
+Layer(2).To = 1385.6512;
 
-Layer(1).From = 1220*fraction;
-Layer(1).To = 1340*fraction;
-
-
-Layer(1).To = Layer(1).To + 20;
+Layer(1).From = 1385.6512;
+Layer(1).To = 1520;
 
 
-
-
+%Layer(1).To = Layer(1).To + 20;
 
 
 % 
