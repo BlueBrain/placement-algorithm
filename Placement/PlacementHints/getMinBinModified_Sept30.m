@@ -1,7 +1,7 @@
-function minBin = getMinBinModified_Sept30(binsNB,binHeight,dendriteHeight,axonHeight,cType)
+function minBin = getMinBinModified_Sept30(binsNB,binHeight,dendriteHeight,axonHeight,cType, LayerFile)
 % returns the minimum possible bin number of neurons depending on the location of lower boundary
 
-Layer = getLayerDefinition();
+Layer = getLayerDefinition(LayerFile);
 
 minBin = [];
 
