@@ -1,8 +1,7 @@
-function Layer = getLayerDefinition()
+function Layer = getLayerDefinition(LayerFile)
 % define Layer Boundaries
 
 %fraction = 1325.81/1200.00;
-fraction = 1500.00/1340.00;
 %fraction = 1.5;
 
 % Layer(6).From = 0*fraction;
@@ -42,27 +41,50 @@ fraction = 1500.00/1340.00;
 % 
 % Layer(1).From = 1104;
 % Layer(1).To = 1200;
-
-
  
+ 
+layerThicknesses = load(LayerFile);
  
 Layer(6).From = 0;
-Layer(6).To = 445.3752;
+Layer(6).To = layerThicknesses(6)+Layer(6).From;
 
-Layer(5).From = 445.3752;
-Layer(5).To = 814.7848;
+Layer(5).From = Layer(6).To;
+Layer(5).To = Layer(5).From+ layerThicknesses(5);
 
-Layer(4).From = 814.7848;
-Layer(4).To = 1005.0736;
 
-Layer(3).From = 1005.376;
-Layer(3).To = 1217.752;
+Layer(4).From = Layer(5).To;
+Layer(4).To = Layer(4).From+ layerThicknesses(4);
 
-Layer(2).From = 1217.752;
-Layer(2).To = 1385.6512;
 
-Layer(1).From = 1385.6512;
-Layer(1).To = 1520;
+Layer(3).From = Layer(4).To;
+Layer(3).To = Layer(3).From+ layerThicknesses(3);
+
+
+Layer(2).From = Layer(3).To;
+Layer(2).To = Layer(2).From+ layerThicknesses(2);
+
+Layer(1).From = Layer(2).To;
+Layer(1).To = Layer(1).From+ layerThicknesses(1);
+
+
+% 
+% Layer(6).From = 0;
+% Layer(6).To = 445.3752;
+% 
+% Layer(5).From = 445.3752;
+% Layer(5).To = 814.7848;
+% 
+% Layer(4).From = 814.7848;
+% Layer(4).To = 1005.0736;
+% 
+% Layer(3).From = 1005.376;
+% Layer(3).To = 1217.752;
+% 
+% Layer(2).From = 1217.752;
+% Layer(2).To = 1385.6512;
+% 
+% Layer(1).From = 1385.6512;
+% Layer(1).To = 1520;
 
 
 %Layer(1).To = Layer(1).To + 20;

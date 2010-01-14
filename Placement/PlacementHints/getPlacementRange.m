@@ -1,4 +1,4 @@
-function getPlacementRange (morphologyParameters, NeuronDB)
+function getPlacementRange (morphologyParameters, NeuronDB, LayerFile)
 %
 % This is a customized version of the
 %
@@ -14,7 +14,7 @@ function getPlacementRange (morphologyParameters, NeuronDB)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %Layer Definition
-Layer = getLayerDefinition();
+Layer = getLayerDefinition(LayerFile);
 %Max number of bins per layer
 binsNB = 10;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
