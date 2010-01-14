@@ -131,8 +131,14 @@ for currentLayer = 1:6
              %   fprintf(1,' %s  \t\t Dendrite : %.2f (%.2f),Axon : %.2f (%.2f) Layer : %d\n', neuron{neuronIndex}, maxHeightDendrite(morphologyIndex)+Layer(currentLayer).From,maxHeightDendrite(morphologyIndex),maxHeightAxon(morphologyIndex)+Layer(currentLayer).From,maxHeightAxon(morphologyIndex),currentLayer)
 
             %end
+            
             maxBin(neuronIndex) = getMaxBinModified (binsNB,binHeight,maxHeight,maxHeightDendrite(morphologyIndex)+ Layer(currentLayer).From, maxHeightAxon(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex));
             %minBin(neuronIndex) = getMinBinModified (binsNB,binHeight,maxHeightDendrite(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex));
+            if strcmp(mType(neuronIndex),'L5CSPC')
+               disp('Here') 
+               fprintf(1,'%f\n',maxBin(neuronIndex))
+            end
+          
             minBin(neuronIndex) = getMinBinModified_Sept30 (binsNB,binHeight,maxHeightDendrite(morphologyIndex) + Layer(currentLayer).From,maxHeightAxon(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex), LayerFile);
 
         end

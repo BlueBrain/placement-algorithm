@@ -1,4 +1,4 @@
-function Layer5testing(filePath, path)
+function Layer5testing(filePath, path,LayerFile)
 % Reads the morpho parameters file and extracts the parameters from it and
 % then assigns an index to the neuron in the neuronDB.dat file. The index
 % varies between 0 and 1 when an index can be assigned otherwise it is left
@@ -14,7 +14,7 @@ neuronTypes = getTypes(path);
 %Number of these types
 TypesNB = length(neuronTypes);
 %Layer Definition
-Layer = getLayerDefinition();
+Layer = getLayerDefinition(LayerFile);
 %Max number of bins per layer
 binsNB = 10;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
