@@ -8,7 +8,7 @@ minBin = [];
 
 %*********************defining the lower boundary
 
-if strcmp (cType, 'L2PC') || strcmp (cType, 'L3PC')|| strcmp (cType,'L4PC')||strcmp (cType,'L5CSPC')|| strcmp (cType,'L5CHPC')
+if strcmp (cType, 'L2PC') || strcmp (cType, 'L3PC')|| strcmp (cType,'L4PC')||strcmp (cType,'L5TTPC')|| strcmp (cType,'L5UTPC')|| strcmp (cType,'L5STPC')
     lowerBoundary= Layer(1).From;
 elseif strcmp (cType, 'L4SP')
     lowerBoundary = Layer(3).From;

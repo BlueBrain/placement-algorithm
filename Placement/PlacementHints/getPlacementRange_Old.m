@@ -134,7 +134,7 @@ for currentLayer = 1:6
             
             maxBin(neuronIndex) = getMaxBinModified (binsNB,binHeight,maxHeight,maxHeightDendrite(morphologyIndex)+ Layer(currentLayer).From, maxHeightAxon(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex));
             %minBin(neuronIndex) = getMinBinModified (binsNB,binHeight,maxHeightDendrite(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex));
-            if strcmp(mType(neuronIndex),'L5TTPC')||strcmp(mType(neuronIndex),'L5UTPC')||strcmp(mType(neuronIndex),'L5STPC')
+            if strcmp(mType(neuronIndex),'L5CSPC')
                disp('Here') 
                fprintf(1,'%f\n',maxBin(neuronIndex))
             end
