@@ -20,7 +20,6 @@ binsNB = 10;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %******************LOAD THE FILES NEEDED
-
 %load the morphology parameters file
 fid = fopen(morphologyParameters);
 A =textscan(fid,'%s%f%f%f%f%f%f%f%f');
@@ -101,12 +100,11 @@ neuron2morphology= zeros(1, neuronsNB);
 
 for currentLayer = 1:6
 
-
     if currentLayer == 5
 
 
     end
-
+    
     % indices of neurons in that given layer
     currentLayerIndices =find (layerNB==currentLayer);
 
@@ -115,13 +113,11 @@ for currentLayer = 1:6
 
     %to get corresponding indices of neurones with specific mType in
     %morphology file
-    if ~isempty(currentLayerIndices)
 
+    if ~isempty(currentLayerIndices)
         MPIndices= getMorphIndices(currentLayerIndices, neuron, neuronName);
 
         for i = 1:length(MPIndices)
-
-
             neuronIndex =  (currentLayerIndices(i));
             morphologyIndex = MPIndices(i);
             neuron2morphology(neuronIndex) = morphologyIndex;
@@ -140,11 +136,11 @@ for currentLayer = 1:6
             end
           
             minBin(neuronIndex) = getMinBinModified_Sept30 (binsNB,binHeight,maxHeightDendrite(morphologyIndex) + Layer(currentLayer).From,maxHeightAxon(morphologyIndex) + Layer(currentLayer).From,mType(neuronIndex), LayerFile);
-
         end
-
+        
     end
-
+    
+    disp(['Done layer' num2str(currentLayer)])
 end
 
 
@@ -158,6 +154,7 @@ end
 
 %%%%%%%%%%%%%%%%% REMOVING ALL NEURONS THAT EXCEED >THE HIGHEST BIN EXCEPT
 %%%%%%%%%%%%%%%%% FOR THE LAYER 2 MARTINOTTI CELLS
+
 neuronsAboveConstraint = find(maxBin==0);
 martinottis = strmatch('MC',mType);
 layer2 = find(layerNB ==2);
@@ -194,4 +191,3 @@ for i=1:length(remainingNeurons)
        fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%.2f\t%.2f\n ',neuron{index},layerNB(index),mType{index},eType{index},MEfilename{index},minBin(index),maxBin(index));
     
 end
-
