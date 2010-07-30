@@ -1,6 +1,8 @@
 function MPIndices = getMorphIndices (cTypeIndices, neuron, neuronName)
 % returns the corresponding index in the morphology file for any index in
 % the neuronDB file
+% Last Edit by $Author$
+% Last Update $Rev$
 
 %note that this re-sorts the morpology names each time the function is called, but we should only call this function
 % once per layer.  If that becomes unacceptable, then the sorting should be done outside and the appropriate datastructure

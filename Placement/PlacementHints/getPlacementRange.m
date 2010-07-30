@@ -6,6 +6,8 @@ function getPlacementRange (morphologyParameters, NeuronDB, LayerFile)
 % then assigns an index to the neuron in the neuronDB.dat file. The index
 % varies between 0 and 1 when an index can be assigned otherwise it is left
 % to -1
+% Last Edit by $Author$
+% Last Update $Rev$
 
 % the placement is done based on the dendrite height
 
