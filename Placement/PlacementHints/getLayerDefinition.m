@@ -1,3 +1,4 @@
+%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 function Layer = getLayerDefinition(LayerFile)
 % define Layer Boundaries
 

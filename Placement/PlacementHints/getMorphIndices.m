@@ -1,3 +1,4 @@
+%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 function MPIndices = getMorphIndices (cTypeIndices, neuron, neuronName)
 % returns the corresponding index in the morphology file for any index in
 % the neuronDB file

@@ -1,3 +1,4 @@
+%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 function somaPositions = binPlacement(L,maxBin,binsNB,minBin)
 % function that will return the positions of the somas, ie the bin 
 % in which the neuron should be placed

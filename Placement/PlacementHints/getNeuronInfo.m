@@ -1,3 +1,4 @@
+%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 function Neuron = getNeuronInfo(hdf5File)
 
 [points, Neuron.beginnings, Neuron.endings, Neuron.typeInfo, Neuron.orderInfo, Neuron.branchcon] = mhdf5(hdf5File);

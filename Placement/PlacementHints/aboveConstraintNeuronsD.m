@@ -1,3 +1,4 @@
+%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 function aboveC= aboveConstraintNeuronsD (maxBin, maxHeight,maxHeightDendrite, neuronName,NeuronDB)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % identifies neurons with dendrites crossing their respective upper

@@ -1,3 +1,4 @@
+%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 function belowC= belowConstraintNeuronsDnew (minBin,  maxHeightDendrite, neuronName,NeuronDB)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % identifies neurons with dendrites that do not reach their respective lower boundary

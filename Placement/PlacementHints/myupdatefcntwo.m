@@ -1,3 +1,4 @@
+%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 function txt = myupdatefcntwo(empt,event_obj,MPIndices,neuronName,dcm_obj,plotIndex,reOrdering,wiS)
 %allows displaying name of cell after clicking on a point in figure, used
 %for figure with multiple simultaneous plots

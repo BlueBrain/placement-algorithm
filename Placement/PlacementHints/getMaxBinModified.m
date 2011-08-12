@@ -1,3 +1,4 @@
+%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 function maxBin= getMaxBinModified (binsNB,binHeight,maxHeight,dendriteHeight,axonHeight,cType)
 % returns the maximum possible bin number of neurons depending on the location of upper boundary
 

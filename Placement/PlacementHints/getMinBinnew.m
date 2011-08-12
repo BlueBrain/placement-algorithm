@@ -1,3 +1,4 @@
+%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 function minBinTemp= getMinBinnew (cType, ind, binsNB, dendriteHeights, binHeight)
 % returns the minimum possible bin number of neurons depending on the location of lower boundary
   

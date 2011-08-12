@@ -1,3 +1,4 @@
+%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 function [points, beginnings, endings, typeInfo, orderInfo, branchcon] = mhdf5(filename)
 
 % fileinfo = hdf5info('/home/anwar/cajal_neurons/C210301C1');
