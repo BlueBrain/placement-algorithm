@@ -1,4 +1,4 @@
-%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
+%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 % Simple Version function
 % Last Edit by $Author: vij $
 % Last Update $Rev: 47 $
