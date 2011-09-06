@@ -1,5 +1,5 @@
-%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 function getPlacementRange (morphologyParameters, NeuronDB, LayerFile)
+%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 %
 % This is a customized version of the
 %

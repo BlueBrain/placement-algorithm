@@ -1,5 +1,5 @@
-%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 function parameters = getMorphParameters(sourcePath,outputPath)
+%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 %
 %Writes the Morphology Parameters of all h5 files in a directory to a file
 %
