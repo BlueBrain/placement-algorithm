@@ -1,5 +1,5 @@
-%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 function getPlacementHintDnewrep (filePath, path)
+%%Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 % Reads the morpho parameters file and extracts the parameters from it and
 % then assigns an index to the neuron in the neuronDB.dat file. The index
 % varies between 0 and 1 when an index can be assigned otherwise it is left
