@@ -30,7 +30,7 @@ classdef XmlSpecifiedRuleCheck < handle
             obj.makeLayerBins();
             %then do parsing here            
             xml = parseXML(file);
-            obj.addRulesFromXml(xml);
+            obj.addRulesFromXml(xml.Children(cellfun(@(x)x(1)~='#',{xml.Children.Name})));
         end
         function [] = addMorphologyInstance(obj,file)
             %read new rule instances
@@ -40,7 +40,12 @@ classdef XmlSpecifiedRuleCheck < handle
             %this ever fails just use string returning functions instead of
             %directly returning the string.
             nameFieldLookup = @(x,str,fn)ifElseExpansion(any(cellfun(@(s)strcmp(s,str),{x.Name})),{'',x(cellfun(@(s)strcmp(s,str),{x.Name})).(fn)});
-            morphName = nameFieldLookup(xml.Attributes,'morphology','Value');
+            if(isempty(xml.Attributes))
+                warning('PlacementHints:ReadRuleInstance:MorphologyNotSpecified','Morphology name not specified in xml. Guessing from filename: %s',file);
+                [~,morphName] = fileparts(file);
+            else
+                morphName = nameFieldLookup(xml.Attributes,'morphology','Value');
+            end
             annotations = xml.Children;
             annotations = annotations(cellfun(@(x)strcmp(x,'placement'),{annotations.Name}));
             for i = 1:length(annotations)
