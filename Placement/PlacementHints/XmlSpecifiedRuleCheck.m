@@ -34,6 +34,12 @@ classdef XmlSpecifiedRuleCheck < handle
         end
         function [] = addMorphologyInstance(obj,file)
             %read new rule instances
+            if(~exist(file,'file'))
+                warning('PlacementHints:ReadRuleInstance:AnnotationsNotFound',...
+                    'No annotation xml file found at %s. Adding morphology without constraints',file);
+                [~,morphName] = fileparts(file);
+                obj.morphologyRuleInstances.(morphName) = [];
+            end
             xml =  parseXML(file);            
             ifElseExpansion = @(x,ie)ie{double(x)+1};
             %This relies on lazy evaluation of the if/else condition. If
