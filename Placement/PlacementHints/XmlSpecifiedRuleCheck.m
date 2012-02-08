@@ -28,8 +28,10 @@ classdef XmlSpecifiedRuleCheck < handle
             obj.transferFcn.default = @(x)x;
             obj.transferFcn.upper_hard_limit = @(x)obj.upper_hard_limit(x);
             obj.ruleCheckFcn.region_target = @(instance,rule,bins)obj.checkRegionTarget(instance,rule,bins);
-            obj.ruleCheckFcn.y_below = @(instance,rule,bins)obj.checkYBelow(instance,rule,bins);
+            obj.ruleCheckFcn.below = @(instance,rule,bins)obj.checkYBelow(instance,rule,bins);
             obj.makeLayerBins();
+            obj.strictness = 50;
+            obj.morphologyRuleInstances = [];
             %then do parsing here            
             xml = parseXML(file);
             obj.addRulesFromXml(xml.Children(cellfun(@(x)x(1)~='#',{xml.Children.Name})));
@@ -39,8 +41,11 @@ classdef XmlSpecifiedRuleCheck < handle
             if(~exist(file,'file'))
                 warning('PlacementHints:ReadRuleInstance:AnnotationsNotFound',...
                     'No annotation xml file found at %s. Adding morphology without constraints',file);
-                [~,morphName] = fileparts(file);
-                obj.morphologyRuleInstances.(morphName) = [];
+                [~,morphName] = fileparts(file);   
+                %morphName = strrep(morphName,'-','_');
+                obj.morphologyRuleInstances(end+1).morphName = morphName;
+                obj.morphologyRuleInstances(end).rules = [];
+                return
             end
             xml =  parseXML(file);            
             ifElseExpansion = @(x,ie)ie{double(x)+1};
@@ -50,21 +55,23 @@ classdef XmlSpecifiedRuleCheck < handle
             nameFieldLookup = @(x,str,fn)ifElseExpansion(any(cellfun(@(s)strcmp(s,str),{x.Name})),{'',x(cellfun(@(s)strcmp(s,str),{x.Name})).(fn)});
             if(isempty(xml.Attributes))
                 warning('PlacementHints:ReadRuleInstance:MorphologyNotSpecified','Morphology name not specified in xml. Guessing from filename: %s',file);
-                [~,morphName] = fileparts(file);
+                [~,morphName] = fileparts(file);                
             else
                 morphName = nameFieldLookup(xml.Attributes,'morphology','Value');
             end
+            %morphName = strrep(morphName,'-','_');
+            obj.morphologyRuleInstances(end+1).morphName = morphName;
             annotations = xml.Children;
             annotations = annotations(cellfun(@(x)strcmp(x,'placement'),{annotations.Name}));
             for i = 1:length(annotations)
-                instance = nameFieldLookup(annotations(i).Children,'use_rule','Attributes');
+                instance = annotations(i).Attributes;
                 
                 ruleName = nameFieldLookup(instance,'rule','Value');
-                obj.morphologyRuleInstances.(morphName)(i).Rule = ruleName;
+                obj.morphologyRuleInstances(end).rules(i).Rule = ruleName;                
                 
                 otherAttributes = setdiff({instance.Name},'rule');
                 for j = 1:length(otherAttributes)
-                    obj.morphologyRuleInstances.(morphName)(i).(otherAttributes{j})=nameFieldLookup(instance,otherAttributes{j},'Value');
+                    obj.morphologyRuleInstances(end).rules(i).(otherAttributes{j})=nameFieldLookup(instance,otherAttributes{j},'Value');
                 end                
             end            
         end
@@ -76,7 +83,7 @@ classdef XmlSpecifiedRuleCheck < handle
             obj.results(end).layer = inLayer;
         end
         function [] = plotOverview(obj,varargin)
-            filter = ones(1,size(obj.results));
+            filter = ones(1,length(obj.results));
             titleStr = '';
             for i = 1:2:length(varargin)
                 if(ischar(varargin{i+1}))
@@ -89,12 +96,13 @@ classdef XmlSpecifiedRuleCheck < handle
             end
             valids = obj.results(find(filter));
             allYBins = catCell(2,obj.layerBins([valids.layer]));
-            allScores = catCell(2,{obj.results.scores});
+            allScores = catCell(2,{valids.scores});
             figure('Position',[200 300 300 800]);
             boxplot(allScores,allYBins,'plotstyle','compact','orientation','horizontal');
-            axes('Position',get(gca,'Position'),'Color','none','XTick',[],'YTick',[]);
-            line(cellfun(@(y)sum(allScores(allYBins==y)),num2cell(unique(allYBins))),unique(allYBins),'Color',[1 0 0]);
-            xlabel('score');ylabel('\mum');            
+            xlabel('score');ylabel('\mum');set(gca,'XLim',[0 max(get(gca,'XLim'))]);
+            axes('Position',get(gca,'Position'),'Color','none','YTick',[],'XAxisLocation','top','XColor',[0.7 0 0]);
+            line(cellfun(@(y)sum(allScores(allYBins==y)),num2cell(unique(allYBins))),unique(allYBins),'Color',[1 0 0]);            
+            xlabel('total score'); set(gca,'XLim',[0 max(get(gca,'XLim'))]);
         end
         function [] = writeChampions(obj,toFile)
             fid = fopen(toFile,'w');
@@ -117,14 +125,18 @@ classdef XmlSpecifiedRuleCheck < handle
     end
     methods(Access=private)        
         function scores = checkMorphology(obj,morphName,inLayer,asMType)
-            if(~isfield(obj.morphologyRuleInstances,morphName))
+            finder = find(cellfun(@(x)strcmp(x,morphName),{obj.morphologyRuleInstances.morphName}),1);
+            if(isempty(finder))
                 error('PlacementHints:getResults:MorphologyNotAnnotated','Morphology %s has no rule instance file specified!',morphName);
             else
+                relevantInstances = obj.morphologyRuleInstances(finder).rules;
                 if(~isfield(obj.ruleSets,asMType))
-                    error('PlacementHints:getResults:MTypeNotKnown','Cannot find rules for MType %s!',asMType);
-                end
-                relevantInstances = obj.morphologyRuleInstances.(morphName);
-                relevantRuleSet = obj.ruleSets.(asMType); 
+                    %error('PlacementHints:getResults:MTypeNotKnown','Cannot find rules for MType %s!',asMType);
+                    relevantRuleSet = struct();
+                else
+                    relevantRuleSet = obj.ruleSets.(asMType); 
+                end                
+                
                 scores = ones(0,length(obj.layerBins{inLayer}));
                 for i = 1:length(relevantInstances)
                     if(~isfield(relevantRuleSet,relevantInstances(i).Rule))
@@ -144,7 +156,7 @@ classdef XmlSpecifiedRuleCheck < handle
                     end
                     scores(i,:) = tferFunc(obj.ruleCheckFcn.(relevantRule.type)(relevantInstances(i),relevantRule,obj.layerBins{inLayer}));
                 end
-                scores = mergeScores(scores);
+                scores = obj.mergeScores(scores);
             end
         end
         

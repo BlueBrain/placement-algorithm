@@ -1,4 +1,4 @@
-function getPlacementRange (NeuronDB, LayerFile, ruleFile, annotationPath)
+function getPlacementRange (NeuronDB, recipe, ruleFile, annotationPath)
 %Copyright © BBP/EPFL 2005-2011; All rights reserved. Do not distribute without further notice
 %
 % This is a customized version of the
@@ -17,7 +17,7 @@ function getPlacementRange (NeuronDB, LayerFile, ruleFile, annotationPath)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %Layer Definition
-Layer = getLayerDefinition(LayerFile);
+Layer = getLayerDefinition(recipe);
 
 %get info needed from neuronDB file (output file)
 %load the NeuronDB.dat file
@@ -58,6 +58,10 @@ for i=1:length(neuron)
        sprintf('%d ',scores));
 end
 
+%for i = 1:length(neuronMTypes)
+%    placer.plotOverview('mtype',neuronMTypes{i});
+%end
+placer.plotOverview('mtype','L23_MC');
 
 %generate newNeuronDB with placement hints
 
