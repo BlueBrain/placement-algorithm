@@ -51,7 +51,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%% DEFINE THE CONSTRAINT %%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-fid = fopen('newNeuronDB.dat','w');
+fid = fopen('v4_NeuronDB.dat','w');
 for i=1:length(neuron)    
    scores = placer.getResult(neuron{i},layerNB(i),mType{i});
    fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%s\n ',neuron{i},layerNB(i),mType{i},eType{i},MEfilename{i},...
@@ -62,6 +62,10 @@ end
 %    placer.plotOverview('mtype',neuronMTypes{i});
 %end
 placer.plotOverview('mtype','L23_MC');
+placer.plotOverview('mtype','L23_PC');
+placer.plotOverview('mtype','L4_MC');
+placer.plotOverview('mtype','L5_MC');
+1
 
 %generate newNeuronDB with placement hints
 

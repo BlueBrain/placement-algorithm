@@ -32,8 +32,12 @@ classdef XmlSpecifiedRuleCheck < handle
             obj.makeLayerBins();
             obj.strictness = 50;
             obj.morphologyRuleInstances = [];
-            %then do parsing here            
-            xml = parseXML(file);
+            %then do parsing here   
+            if(exist('parseXML','file'))
+                xml = parseXML(file);
+            else
+                xml = xml2struct(file);
+            end
             obj.addRulesFromXml(xml.Children(cellfun(@(x)x(1)~='#',{xml.Children.Name})));
         end
         function [] = addMorphologyInstance(obj,file)
@@ -47,7 +51,11 @@ classdef XmlSpecifiedRuleCheck < handle
                 obj.morphologyRuleInstances(end).rules = [];
                 return
             end
-            xml =  parseXML(file);            
+            if(exist('parseXML','file'))
+                xml = parseXML(file);
+            else
+                xml = xml2struct(file);
+            end           
             ifElseExpansion = @(x,ie)ie{double(x)+1};
             %This relies on lazy evaluation of the if/else condition. If
             %this ever fails just use string returning functions instead of
