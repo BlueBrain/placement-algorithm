@@ -110,7 +110,8 @@ classdef XmlSpecifiedRuleCheck < handle
             xlabel('score');ylabel('\mum');set(gca,'XLim',[0 max(get(gca,'XLim'))]);
             axes('Position',get(gca,'Position'),'Color','none','YTick',[],'XAxisLocation','top','XColor',[0.7 0 0]);
             line(cellfun(@(y)sum(allScores(allYBins==y)),num2cell(unique(allYBins))),unique(allYBins),'Color',[1 0 0]);            
-            xlabel('total score'); set(gca,'XLim',[0 max(get(gca,'XLim'))]);
+            xlabel('total score'); set(gca,'XLim',[0 max(get(gca,'XLim'))],'YLim',[min(allYBins) max(allYBins)]);
+            title(titleStr,'Interpreter','none');
         end
         function [] = writeChampions(obj,toFile)
             fid = fopen(toFile,'w');
@@ -119,11 +120,15 @@ classdef XmlSpecifiedRuleCheck < handle
             for i = 1:length(umtype)
                 fprintf(fid,'For mtype = %s\n',umtype{i});
                 indices = find(cellfun(@(x)strcmp(x,umtype{i}),layerMType));                
+                if(isempty(indices))
+                    continue
+                end
                 bins = obj.layerBins{obj.results(indices(1)).layer};
                 for j = 1:length(bins)
                     [scores sorted] = sort(cellfun(@(x)x(j),{obj.results(indices).scores}));
-                    for k = length(scores)+[0 -1 -2]
-                        fprintf(fid,'\t%s: %d\n',obj.results(indices(sorted(k))).morphology,scores(k));
+                    fprintf(fid,'\t%4.2f: %s -- %d\n',bins(j),obj.results(indices(sorted(end))).morphology,scores(end));
+                    for k = max(length(scores)+[-1 -2],1)                        
+                        fprintf(fid,'\t\t%s -- %d\n',obj.results(indices(sorted(k))).morphology,scores(k));
                     end
                 end                
             end
