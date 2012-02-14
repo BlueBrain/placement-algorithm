@@ -41,11 +41,14 @@ neuronMTypes = unique(mType);
 %Set up the xmlpacement object
 placer = XmlSpecifiedRuleCheck(ruleFile,Layer);
 uNeuron = unique(neuron);
+handle = waitbar(0,'Placement Hints - stage 1: Read rule instances');
+
 for i = 1:length(uNeuron)
     annotationFileName = cat(2,annotationPath,sprintf('/%s.xml',uNeuron{i}));
-    placer.addMorphologyInstance(annotationFileName);    
+    placer.addMorphologyInstance(annotationFileName);
+    handle = waitbar(i/length(uNeuron),handle);
 end
-
+handle = waitbar(0,handle,'Placement Hints - stage 2: Calculate scores');
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -56,7 +59,9 @@ for i=1:length(neuron)
    scores = placer.getResult(neuron{i},layerNB(i),mType{i});
    fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%s\n ',neuron{i},layerNB(i),mType{i},eType{i},MEfilename{i},...
        sprintf('%d ',scores));
+   handle = waitbar(i/length(neuron),handle);
 end
+close(handle);
 
 outPrefix = strrep(strrep(datestr(now),' ','_'),':','-');
 
