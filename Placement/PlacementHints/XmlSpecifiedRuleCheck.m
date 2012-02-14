@@ -30,7 +30,7 @@ classdef XmlSpecifiedRuleCheck < handle
             obj.ruleCheckFcn.region_target = @(instance,rule,bins)obj.checkRegionTarget(instance,rule,bins);
             obj.ruleCheckFcn.below = @(instance,rule,bins)obj.checkYBelow(instance,rule,bins);
             obj.makeLayerBins();
-            obj.strictness = 50;
+            obj.strictness = 75;
             obj.morphologyRuleInstances = [];
             %then do parsing here   
             if(exist('parseXML','file'))
@@ -98,7 +98,7 @@ classdef XmlSpecifiedRuleCheck < handle
                     filter = filter.*cellfun(@(x)strcmp(x,varargin{i+1}),{obj.results.(varargin{i})});
                     titleStr = cat(2,titleStr,sprintf('%s is %s; ',varargin{i:i+1}));
                 else
-                    filter = filter.*(obj.results.(varargin{i})==varargin{i+1});
+                    filter = filter.*([obj.results.(varargin{i})]==varargin{i+1});
                     titleStr = cat(2,titleStr,sprintf('%s is %d; ',varargin{i:i+1}));
                 end                 
             end
@@ -134,6 +134,100 @@ classdef XmlSpecifiedRuleCheck < handle
             end
             fclose(fid);
         end
+        function [varargout] = writeBestBin(obj,toFile,varargin)
+            filter = ones(1,length(obj.results));
+            titleStr = '';
+            for i = 1:2:length(varargin)
+                if(ischar(varargin{i+1}))
+                    filter = filter.*cellfun(@(x)strcmp(x,varargin{i+1}),{obj.results.(varargin{i})});
+                    titleStr = cat(2,titleStr,sprintf('%s is %s; ',varargin{i:i+1}));
+                else
+                    filter = filter.*([obj.results.(varargin{i})]==varargin{i+1});
+                    titleStr = cat(2,titleStr,sprintf('%s is %d; ',varargin{i:i+1}));
+                end                 
+            end
+            valids = obj.results(find(filter));
+            
+            if(ischar(toFile))
+                fid = fopen(toFile,'w');                        
+                fprintf(fid,'Using rule set at %s\n',obj.ruleSetFile);
+                fprintf(fid,'and the following layer boundaries:\n');
+                for i = 1:length(obj.layerInfo)
+                    fprintf(fid,'Layer %d:\n\t\tfrom %4.2f to %4.2f\n',i,obj.layerInfo(i).From,obj.layerInfo(i).To);
+                end
+            else
+                fid = toFile;
+            end
+            fprintf(fid,'\nShowing results for the following filter(s):\n\t%s\n\n',titleStr);
+            for i = 1:length(valids)
+                bins = obj.layerBins{valids(i).layer};
+                mx = max(valids(i).scores);
+                pos = mean(bins(valids(i).scores == mx));
+                fprintf(fid,'\t%s: %4.2f -- %d\n',valids(i).morphology, pos, mx);
+            end
+            if(nargout==1)
+                varargout{1} = fid;
+            else
+                close(fid);
+            end
+        end
+        function [] = plotCollage(obj,morphDir,maxNum,varargin)            
+            filter = ones(1,length(obj.results));
+            titleStr = '';
+            for i = 1:2:length(varargin)
+                if(ischar(varargin{i+1}))
+                    filter = filter.*cellfun(@(x)strcmp(x,varargin{i+1}),{obj.results.(varargin{i})});
+                    titleStr = cat(2,titleStr,sprintf('%s is %s; ',varargin{i:i+1}));
+                else
+                    filter = filter.*([obj.results.(varargin{i})]==varargin{i+1});
+                    titleStr = cat(2,titleStr,sprintf('%s is %d; ',varargin{i:i+1}));
+                end                 
+            end
+            valids = obj.results(find(filter));                        
+            for i = 1:length(valids)
+                bins = obj.layerBins{valids(i).layer};
+                mx(i) = max(valids(i).scores);
+                pos(i) = mean(bins(valids(i).scores == mx(i)));                
+            end            
+            [~, indices] = sort(mx);            
+            indices = indices(max(1,end-maxNum+1):end);
+            indices = indices(mx(indices)>0);
+            mLabels = {valids(indices).morphology};
+            pos = pos(indices);
+            
+            
+            mr = bbp_sdk_java.Morphology_Reader;
+            mr.open(morphDir);
+            morphs = bbp_sdk_java.Morphologies;
+            mTgt = bbp_sdk_java.Morphology_Target;
+            for i = 1:length(mLabels)
+                mTgt.insert(mLabels{i});
+            end
+            mr.read(morphs,mTgt);
+            
+            fgr = figure('Position',[200 400 120*length(mLabels) 400]);
+            tbl.apical = {3};
+            tbl.soma = {3};
+            tbl.dend = {3};
+            tbl.axon = {2};
+            iter = morphs.begin;
+            xOff = 0;
+            while(~iter.equals(morphs.end))
+                m = iter.value;
+                index = find(cellfun(@(x)strcmp(x,char(m.label)),mLabels));
+                box = getNeuronAABoundingBox(m,'axon');
+                plotNeuronColored2(m,tbl,true,true,'colorTable',[0 0 0;0 0 1;1 0 0],'offset',[xOff-box(1) pos(index) 0]);
+                xOff = xOff + 25 + diff(box(1:2));
+                iter.next;
+            end 
+            set(gca,'YLim',get(gca,'YLim'));
+            for i = 1:length(obj.layerInfo)
+                line(get(gca,'XLim'),obj.layerInfo(i).From.*ones(1,2),'Color',[0 0 0],'LineWidth',3);
+                line(get(gca,'XLim'),obj.layerInfo(i).To.*ones(1,2),'Color',[0 0 0],'LineWidth',3);
+                text(10,(obj.layerInfo(i).From + obj.layerInfo(i).To)/2,num2str(i));
+            end
+            title(titleStr,'Interpreter','none');
+        end
         
     end
     methods(Access=private)        
@@ -145,22 +239,22 @@ classdef XmlSpecifiedRuleCheck < handle
                 relevantInstances = obj.morphologyRuleInstances(finder).rules;
                 if(~isfield(obj.ruleSets,asMType))
                     %error('PlacementHints:getResults:MTypeNotKnown','Cannot find rules for MType %s!',asMType);
-                    relevantRuleSet = struct();
+                    relevantRuleSet = [];
                 else
                     relevantRuleSet = obj.ruleSets.(asMType); 
                 end                
                 
                 scores = ones(0,length(obj.layerBins{inLayer}));
                 for i = 1:length(relevantInstances)
-                    if(~isfield(relevantRuleSet,relevantInstances(i).Rule))
-                        if(isfield(obj.ruleSets.global,relevantInstances(i).Rule))
-                            relevantRule = obj.ruleSets.global.(relevantInstances(i).Rule);
+                    if(isempty(relevantRuleSet) || ~relevantRuleSet.rules.isKey(relevantInstances(i).Rule))
+                        if(obj.ruleSets.global.rules.isKey(relevantInstances(i).Rule))
+                            relevantRule = obj.ruleSets.global.rules(relevantInstances(i).Rule);
                         else
                             error('PlacementHints:getResults:UnknownRule','Rule instance refers to rule %s in %s, which is not defined! Neither defined as global',...
-                            relevantInstances(i).Rule,relevantRuleSet.mtype);
+                            relevantInstances(i).Rule,asMType);
                         end
                     else
-                        relevantRule = relevantRuleSet.(relevantInstances(i).Rule);
+                        relevantRule = relevantRuleSet.rules(relevantInstances(i).Rule);
                     end                    
                     if(isfield(relevantInstances(i),'transferFcn'))
                         tferFunc = obj.transferFcn.(strrep(relevantInstances(i).transferFcn,'-','_'));
@@ -177,11 +271,11 @@ classdef XmlSpecifiedRuleCheck < handle
             if(isempty(scores))
                 scores = ones(1,size(scores,2));
                 return;
-            end
-            fcn = @(x,p)((sum(x.^p)/length(x))^(1/p))*all(x>=0);
+            end            
+            baseWeight = log10(obj.strictness).^9;
+            fcn = @(x,p)(baseWeight.*(nansum(nansum(real(x).^p)/sum(~isnan(real(x))))^(1/p)));
             shapeParameter = norminv(obj.strictness/101,1,2.25);            
-            baseWeight = size(scores,1).*(log10(obj.strictness).^7);
-            scores = round(baseWeight.*cellfun(@(x)fcn(x,shapeParameter),num2cell(scores,1)));%+ones(1,size(scores,2)));
+            scores = round((cellfun(@(x)fcn(x,shapeParameter),num2cell(scores,1))+1).*min(imag(scores),[],1));%+ones(1,size(scores,2)));
         end
         
         %Function subject to change if we ever inplement more than just y
@@ -212,19 +306,23 @@ classdef XmlSpecifiedRuleCheck < handle
                     currMType = nameValueLookup(xml(i).Attributes,'mtype');
                 end
                 obj.ruleSets.(currMType).mtype = currMType;
+                myMap = containers.Map;
                 %If we ever have other types of rules add that case here.
                 rules = xml(i).Children;
                 rules = rules(cellfun(@(x)x(1)~='#',{rules.Name}));
                 for j = 1:length(rules)
                     id = nameValueLookup(rules(j).Attributes,'id');
+                    myStruct = struct();
                     if(isempty(id))
                         error('XMLPlacementHints:Rules:EmptyIdentifier','This rule has no field "id" specified!');
                     end
                     attr = setdiff({rules(j).Attributes.Name},'id');
                     for k=1:length(attr)
-                        obj.ruleSets.(currMType).(id).(attr{k}) = nameValueLookup(rules(j).Attributes,attr{k});
+                        myStruct.(attr{k}) = nameValueLookup(rules(j).Attributes,attr{k});                        
                     end
+                    myMap(id) = myStruct;
                 end
+                obj.ruleSets.(currMType).rules = myMap;
             end
         end
         
@@ -245,12 +343,15 @@ classdef XmlSpecifiedRuleCheck < handle
             intervalRel = [str2double(instance.y_min) str2double(instance.y_max)];
             scores = cellfun(@(x)diff(minMaxFcn(intervalAbs,intervalRel+x)),num2cell(bins))./min(diff(intervalAbs),diff(intervalRel));
             scores(scores<0)=0;
-            scores = scores.^2;
+            scores = scores.^2 + ones(size(scores))*1i;
         end
         function scores = checkYBelow(obj,instance,rule,bins)            
             limitAbs = obj.getLayerInterval(rule,{'y'});
             limitRel = str2double(instance.y_max);
-            scores = 2.*(limitRel+bins<=limitAbs)-1;            
+            scores = (limitAbs - (limitRel+bins) + 30)./30;
+            scores(scores>1) = 1;
+            scores(scores<0) = 0;
+            scores = NaN + scores.*1i;
         end
         
     end

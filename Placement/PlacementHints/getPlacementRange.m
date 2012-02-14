@@ -58,13 +58,23 @@ for i=1:length(neuron)
        sprintf('%d ',scores));
 end
 
-%for i = 1:length(neuronMTypes)
-%    placer.plotOverview('mtype',neuronMTypes{i});
-%end
-placer.plotOverview('mtype','L23_MC');
-placer.plotOverview('mtype','L23_PC');
-placer.plotOverview('mtype','L4_MC');
-placer.plotOverview('mtype','L5_MC');
+outPrefix = strrep(strrep(datestr(now),' ','_'),':','-');
+
+placer.writeChampions(cat(2,outPrefix,'_champions_per_bin.txt'));
+bestBinFile = cat(2,outPrefix,'_best_bins_for.txt');
+
+for i = 1:length(neuronMTypes)
+    activeLayers = unique(layerNB(cellfun(@(x)strcmp(x,neuronMTypes{i}),mType)));
+    for j = 1:length(activeLayers)
+        bestBinFile = placer.writeBestBin(bestBinFile,'mtype',neuronMTypes{i},'layer',activeLayers(j));
+    end    
+end
+fclose(bestBinFile);
+save(cat(2,outPrefix,'_placer.mat'),'placer');
+%placer.plotOverview('mtype','L23_MC');
+%placer.plotOverview('mtype','L23_PC');
+%placer.plotOverview('mtype','L4_MC');
+%placer.plotOverview('mtype','L5_MC');
 1
 
 %generate newNeuronDB with placement hints
