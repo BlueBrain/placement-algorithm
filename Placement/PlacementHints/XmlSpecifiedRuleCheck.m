@@ -29,6 +29,7 @@ classdef XmlSpecifiedRuleCheck < handle
             obj.transferFcn.upper_hard_limit = @(x)obj.upper_hard_limit(x);
             obj.ruleCheckFcn.region_target = @(instance,rule,bins)obj.checkRegionTarget(instance,rule,bins);
             obj.ruleCheckFcn.below = @(instance,rule,bins)obj.checkYBelow(instance,rule,bins);
+            obj.ruleCheckFcn.prefer_unscaled = @(instance,rule,bins)obj.preferUnscaled(instance,rule,bins);
             obj.makeLayerBins();
             obj.strictness = 75;
             obj.morphologyRuleInstances = [];
@@ -43,13 +44,12 @@ classdef XmlSpecifiedRuleCheck < handle
         function [] = addMorphologyInstance(obj,file)
             %read new rule instances
             if(~exist(file,'file'))
-                warning('PlacementHints:ReadRuleInstance:AnnotationsNotFound',...
-                    'No annotation xml file found at %s. Adding morphology without constraints',file);
-                [~,morphName] = fileparts(file);   
-                %morphName = strrep(morphName,'-','_');
-                obj.morphologyRuleInstances(end+1).morphName = morphName;
-                obj.morphologyRuleInstances(end).rules = [];
-                return
+                error('PlacementHints:ReadRuleInstance:AnnotationsNotFound',...
+                    'No annotation xml file found at %s. Please annotate before use!',file);
+                %[~,morphName] = fileparts(file);                   
+                %obj.morphologyRuleInstances(end+1).morphName = morphName;
+                %obj.morphologyRuleInstances(end).rules = [];
+                %return
             end
             if(exist('parseXML','file'))
                 xml = parseXML(file);
@@ -337,6 +337,11 @@ classdef XmlSpecifiedRuleCheck < handle
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %      Specific functions for different rule types       %
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        function scores = preferUnscaled(obj,instance,rule,bins)
+            variance = str2double(rule.variance);
+            scores = NaN + ones(size(bins)).*...
+                (normpdf(str2double(instance.percentage),0,variance)/normpdf(0,0,variance))*1j;
+        end
         function scores = checkRegionTarget(obj,instance,rule,bins)            
             minMaxFcn = @(x,y)cat(2,max(x(1),y(1)),min(x(2),y(2)));
             intervalAbs = obj.getLayerInterval(rule,{'y_min','y_max'}); 
