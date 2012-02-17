@@ -40,7 +40,7 @@ neuronMTypes = unique(mType);
 
 %Set up the xmlpacement object
 placer = XmlSpecifiedRuleCheck(ruleFile,Layer);
-uNeuron = unique(neuron);
+[uNeuron, ~, indices] = unique(neuron);
 handle = waitbar(0,'Placement Hints - stage 1: Read rule instances');
 
 for i = 1:length(uNeuron)
@@ -49,38 +49,47 @@ for i = 1:length(uNeuron)
     handle = waitbar(i/length(uNeuron),handle);
 end
 handle = waitbar(0,handle,'Placement Hints - stage 2: Calculate scores');
-
-
+outPrefix = strrep(strrep(datestr(now),' ','_'),':','-');
+save(cat(2,outPrefix,'_placer.mat'),'placer');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%% DEFINE THE CONSTRAINT %%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 fid = fopen('v4_NeuronDB.dat','w');
-for i=1:length(neuron)    
-   scores = placer.getResult(neuron{i},layerNB(i),mType{i});
-   fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%s\n ',neuron{i},layerNB(i),mType{i},eType{i},MEfilename{i},...
-       sprintf('%d ',scores));
-   handle = waitbar(i/length(neuron),handle);
+for i=1:length(uNeuron)
+   instances = find(indices==i);
+   uMTypes = unique(mType(instances));
+   uLayer = unique(layerNB(instances));
+   for j = 1:length(uMTypes)
+       for k = 1:length(uLayer)
+           %scores = placer.getResult(neuron{i},layerNB(i),mType{i});
+           scores = placer.getResult(uNeuron{i},uLayer(k),uMTypes{j});
+           %scores = placer.getResult(i,uLayer(k),uMTypes{j});
+           completeInstances = instances(find(layerNB(instances)==uLayer(k) & ...
+               cellfun(@(x)strcmp(x,uMTypes{j}),mType(instances))));
+           for l = 1:length(completeInstances)
+               fprintf(fid,'%s\t%d\t%s\t%s\t%s\t%s\n ',uNeuron{i},uLayer(k),uMTypes{j},eType{completeInstances(l)},MEfilename{completeInstances(l)},...
+                sprintf('%d ',scores));
+           end
+       end
+   end      
+   handle = waitbar(i/length(uNeuron),handle);
 end
 close(handle);
-
-outPrefix = strrep(strrep(datestr(now),' ','_'),':','-');
+fclose(fid);
 
 placer.writeChampions(cat(2,outPrefix,'_champions_per_bin.txt'));
+
 bestBinFile = cat(2,outPrefix,'_best_bins_for.txt');
-
-for i = 1:length(neuronMTypes)
-    activeLayers = unique(layerNB(cellfun(@(x)strcmp(x,neuronMTypes{i}),mType)));
-    for j = 1:length(activeLayers)
-        bestBinFile = placer.writeBestBin(bestBinFile,'mtype',neuronMTypes{i},'layer',activeLayers(j));
-    end    
-end
-fclose(bestBinFile);
+%for i = 1:length(neuronMTypes)
+%    activeLayers = unique(layerNB(cellfun(@(x)strcmp(x,neuronMTypes{i}),mType)));
+%    for j = 1:length(activeLayers)
+%        placer.plotOverview('mtype',neuronMTypes{i},'layer',activeLayers(j));
+%        saveEpsFigure(gcf,sprintf('./%s_%s_%d_overview.eps',outPrefix,neuronMTypes{i},activeLayers(j)));
+%        close(gcf);
+%        bestBinFile = placer.writeBestBin(bestBinFile,'mtype',neuronMTypes{i},'layer',activeLayers(j));
+%    end
+%end
+%fclose(bestBinFile);
 save(cat(2,outPrefix,'_placer.mat'),'placer');
-%placer.plotOverview('mtype','L23_MC');
-%placer.plotOverview('mtype','L23_PC');
-%placer.plotOverview('mtype','L4_MC');
-%placer.plotOverview('mtype','L5_MC');
-1
 
-%generate newNeuronDB with placement hints
 

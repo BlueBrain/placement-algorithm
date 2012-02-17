@@ -32,7 +32,7 @@ classdef XmlSpecifiedRuleCheck < handle
             obj.ruleCheckFcn.prefer_unscaled = @(instance,rule,bins)obj.preferUnscaled(instance,rule,bins);
             obj.makeLayerBins();
             obj.strictness = 75;
-            obj.morphologyRuleInstances = [];
+            obj.morphologyRuleInstances = containers.Map;
             %then do parsing here   
             if(exist('parseXML','file'))
                 xml = parseXML(file);
@@ -67,21 +67,23 @@ classdef XmlSpecifiedRuleCheck < handle
             else
                 morphName = nameFieldLookup(xml.Attributes,'morphology','Value');
             end
-            %morphName = strrep(morphName,'-','_');
-            obj.morphologyRuleInstances(end+1).morphName = morphName;
+            
+            myStruct.morphName = morphName;
+            
             annotations = xml.Children;
             annotations = annotations(cellfun(@(x)strcmp(x,'placement'),{annotations.Name}));
             for i = 1:length(annotations)
                 instance = annotations(i).Attributes;
                 
                 ruleName = nameFieldLookup(instance,'rule','Value');
-                obj.morphologyRuleInstances(end).rules(i).Rule = ruleName;                
+                myStruct.rules(i).Rule = ruleName;                
                 
                 otherAttributes = setdiff({instance.Name},'rule');
                 for j = 1:length(otherAttributes)
-                    obj.morphologyRuleInstances(end).rules(i).(otherAttributes{j})=nameFieldLookup(instance,otherAttributes{j},'Value');
+                    myStruct.rules(i).(otherAttributes{j})=nameFieldLookup(instance,otherAttributes{j},'Value');
                 end                
-            end            
+            end
+            obj.morphologyRuleInstances(morphName) = myStruct;
         end
         function scores = getResult(obj,morphName,inLayer,asMType)            
             scores = obj.checkMorphology(morphName,inLayer,asMType);            
@@ -231,14 +233,12 @@ classdef XmlSpecifiedRuleCheck < handle
         
     end
     methods(Access=private)        
-        function scores = checkMorphology(obj,morphName,inLayer,asMType)
-            finder = find(cellfun(@(x)strcmp(x,morphName),{obj.morphologyRuleInstances.morphName}),1);
-            if(isempty(finder))
+        function scores = checkMorphology(obj,morphName,inLayer,asMType)                        
+            if(~obj.morphologyRuleInstances.isKey(morphName))
                 error('PlacementHints:getResults:MorphologyNotAnnotated','Morphology %s has no rule instance file specified!',morphName);
             else
-                relevantInstances = obj.morphologyRuleInstances(finder).rules;
-                if(~isfield(obj.ruleSets,asMType))
-                    %error('PlacementHints:getResults:MTypeNotKnown','Cannot find rules for MType %s!',asMType);
+                relevantInstances = obj.morphologyRuleInstances(morphName).rules;
+                if(~isfield(obj.ruleSets,asMType))                    
                     relevantRuleSet = [];
                 else
                     relevantRuleSet = obj.ruleSets.(asMType); 
@@ -338,17 +338,28 @@ classdef XmlSpecifiedRuleCheck < handle
         %      Specific functions for different rule types       %
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         function scores = preferUnscaled(obj,instance,rule,bins)
-            variance = str2double(rule.variance);
+            variance = str2double(rule.sigma);
             scores = NaN + ones(size(bins)).*...
                 (normpdf(str2double(instance.percentage),0,variance)/normpdf(0,0,variance))*1j;
         end
-        function scores = checkRegionTarget(obj,instance,rule,bins)            
-            minMaxFcn = @(x,y)cat(2,max(x(1),y(1)),min(x(2),y(2)));
+        function scores = checkRegionTarget(obj,instance,rule,bins)           
+            %minMaxFcn = @(x,y)cat(2,max(x(1),y(1)),min(x(2),y(2)));
             intervalAbs = obj.getLayerInterval(rule,{'y_min','y_max'}); 
-            intervalRel = [str2double(instance.y_min) str2double(instance.y_max)];
-            scores = cellfun(@(x)diff(minMaxFcn(intervalAbs,intervalRel+x)),num2cell(bins))./min(diff(intervalAbs),diff(intervalRel));
-            scores(scores<0)=0;
-            scores = scores.^2 + ones(size(scores))*1i;
+            intervalRel = [str2double(instance.y_min) str2double(instance.y_max)];            
+            meanAbs = mean(intervalAbs);
+            sigAbs = diff(intervalAbs)/3;
+            meanRel = mean(intervalRel);
+            sigRel = diff(intervalRel)/3;
+            xMin = min(meanRel-3*sigRel+min(bins),meanAbs-3*sigAbs);
+            xMax = max(meanRel+3*sigRel+min(bins),meanAbs+3*sigAbs);
+            x = xMin:10:xMax;                               
+            func = @(off)sum(normpdf(x,meanRel+off,sigRel).*normpdf(x,meanAbs,sigAbs));
+            scores = cellfun(func,num2cell(bins))./func(min(intervalAbs)-min(intervalRel));
+            scores(scores>1)=1;
+            
+            %scores = cellfun(@(x)diff(minMaxFcn(intervalAbs,intervalRel+x)),num2cell(bins))./min(diff(intervalAbs),diff(intervalRel));
+            %scores(scores<0)=0;
+            scores = scores + ones(size(scores))*1i;
         end
         function scores = checkYBelow(obj,instance,rule,bins)            
             limitAbs = obj.getLayerInterval(rule,{'y'});
