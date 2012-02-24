@@ -273,10 +273,13 @@ classdef XmlSpecifiedRuleCheck < handle
                 return;
             end            
             baseWeight = log10(obj.strictness).^9;
-            fcn = @(x,p)(baseWeight.*(nansum(nansum(real(x).^p)/sum(~isnan(real(x))))^(1/p)));
-            shapeParameter = -1;%norminv(obj.strictness/101,1,2.25);            
-            scores = round((cellfun(@(x)fcn(x,shapeParameter),num2cell(scores,1))+1).*min(imag(scores),[],1));%+ones(1,size(scores,2)));
-        end
+            epsilon = 1/baseWeight;
+            %fcn = @(x,p)(baseWeight.*nansum((nansum(real(x).^p)/sum(~isnan(real(x))))^(1/p)));
+            fcn = @(x,p)nansum((nansum(real(baseWeight.*(x+epsilon)).^p)/sum(~isnan(real(x))))^(1/p));
+            shapeParameter = 5-obj.strictness/12.5;
+            scores = ceil((cellfun(@(x)fcn(x,shapeParameter),num2cell(scores,1))+1).*min(imag(scores),[],1));%+ones(1,size(scores,2)));
+        end              
+        
         
         %Function subject to change if we ever inplement more than just y
         %intervals. For now lazily implemented
