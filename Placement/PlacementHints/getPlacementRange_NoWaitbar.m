@@ -41,14 +41,22 @@ neuronMTypes = unique(mType);
 %Set up the xmlpacement object
 placer = XmlSpecifiedRuleCheck(ruleFile,Layer);
 [uNeuron, ~, indices] = unique(neuron);
-handle = waitbar(0,'Placement Hints - stage 1: Read rule instances');
+%handle = waitbar(0,'Placement Hints - stage 1: Read rule instances');
+reverseStr = '';
+disp('Placement Hints - stage 1: Read rule instances')
 
 for i = 1:length(uNeuron)
     annotationFileName = cat(2,annotationPath,sprintf('/%s.xml',uNeuron{i}));
     placer.addMorphologyInstance(annotationFileName);
-    handle = waitbar(i/length(uNeuron),handle);
+    %handle = waitbar(i/length(uNeuron),handle);
+    percentDone = 100 * i/length(uNeuron);
+    msg = sprintf('Percent done: %3.1f', percentDone);
+    fprintf([reverseStr, msg]);
+    reverseStr = repmat(sprintf('\b'), 1, length(msg));
 end
-handle = waitbar(0,handle,'Placement Hints - stage 2: Calculate scores');
+%handle = waitbar(0,handle,'Placement Hints - stage 2: Calculate scores');
+reverseStr = '';
+disp('Placement Hints - stage 2: Calculate scores')
 outPrefix = strrep(strrep(datestr(now),' ','_'),':','-');
 save(cat(2,outPrefix,'_placer.mat'),'placer');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -72,9 +80,13 @@ for i=1:length(uNeuron)
            end
        end
    end      
-   handle = waitbar(i/length(uNeuron),handle);
+   %handle = waitbar(i/length(uNeuron),handle);
+   percentDone = 100 * i/length(uNeuron);
+   msg = sprintf('Percent done: %3.1f', percentDone);
+   fprintf([reverseStr, msg]);
+   reverseStr = repmat(sprintf('\b'), 1, length(msg));
 end
-close(handle);
+%close(handle);
 fclose(fid);
 
 placer.writeChampions(cat(2,outPrefix,'_champions_per_bin.txt'));

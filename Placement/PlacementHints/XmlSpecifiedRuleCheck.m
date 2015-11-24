@@ -250,8 +250,8 @@ classdef XmlSpecifiedRuleCheck < handle
                         if(obj.ruleSets.global.rules.isKey(relevantInstances(i).Rule))
                             relevantRule = obj.ruleSets.global.rules(relevantInstances(i).Rule);
                         else
-                            error('PlacementHints:getResults:UnknownRule','Rule instance refers to rule %s in %s, which is not defined! Neither defined as global',...
-                            relevantInstances(i).Rule,asMType);
+                            error('PlacementHints:getResults:UnknownRule','Rule instance refers to rule %s in %s (morph: %s), which is not defined! Neither defined as global',...
+                            relevantInstances(i).Rule,asMType, morphName);
                         end
                     else
                         relevantRule = relevantRuleSet.rules(relevantInstances(i).Rule);
