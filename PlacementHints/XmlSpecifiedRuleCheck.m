@@ -233,15 +233,16 @@ classdef XmlSpecifiedRuleCheck < handle
         
     end
     methods(Access=private)        
-        function scores = checkMorphology(obj,morphName,inLayer,asMType)                        
+        function scores = checkMorphology(obj,morphName,inLayer,asMType) 
+            asMType_safe = strrep(asMType, ':','_'); 
             if(~obj.morphologyRuleInstances.isKey(morphName))
                 error('PlacementHints:getResults:MorphologyNotAnnotated','Morphology %s has no rule instance file specified!',morphName);
             else
                 relevantInstances = obj.morphologyRuleInstances(morphName).rules;
-                if(~isfield(obj.ruleSets,asMType))                    
+                if(~isfield(obj.ruleSets,asMType_safe))                    
                     relevantRuleSet = [];
                 else
-                    relevantRuleSet = obj.ruleSets.(asMType); 
+                    relevantRuleSet = obj.ruleSets.(asMType_safe); 
                 end                
                 
                 scores = ones(0,length(obj.layerBins{inLayer}));
@@ -308,7 +309,8 @@ classdef XmlSpecifiedRuleCheck < handle
                 else
                     currMType = nameValueLookup(xml(i).Attributes,'mtype');
                 end
-                obj.ruleSets.(currMType).mtype = currMType;
+                currMType_safe = strrep(currMType, ':','_'); 
+                obj.ruleSets.(currMType_safe).mtype = currMType;
                 myMap = containers.Map;
                 %If we ever have other types of rules add that case here.
                 rules = xml(i).Children;
@@ -325,7 +327,7 @@ classdef XmlSpecifiedRuleCheck < handle
                     end
                     myMap(id) = myStruct;
                 end
-                obj.ruleSets.(currMType).rules = myMap;
+                obj.ruleSets.(currMType_safe).rules = myMap;
             end
         end
         
