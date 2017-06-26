@@ -1,0 +1,5 @@
+<annotations morphology="C060106F">
+  <placement rule="L1_HAC, axon, Layer_1" y_min="-70.0" y_max="46.0"/>
+  <placement rule="L1_hard_limit" y_min="-223.907318115" y_max="33.7012710571"/>
+  <placement rule="L1_axon_hard_limit" y_min="-217.9246521" y_max="38.8493537903"/>
+</annotations>
