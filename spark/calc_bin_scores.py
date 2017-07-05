@@ -1,12 +1,13 @@
 import os
 import argparse
+import math
 import numpy as np
 
 from functools import partial
 from pyspark import SparkContext
 
 
-SCORE_CMD = "scoreCandidates --annotations {annotations} --rules {rules} --layers {layers}"
+SCORE_CMD = "scorePlacement --annotations {annotations} --rules {rules} --layers {layers}"
 
 
 def parse_morphdb(elem):
@@ -14,17 +15,23 @@ def parse_morphdb(elem):
     return morph, layer
 
 
+def get_layer_bins(y0, y1, binsize):
+    bin_count = math.ceil((y1 - y0) / binsize) + 1
+    borders = np.linspace(y0, y1, bin_count)
+    return (borders[:-1] + borders[1:]) / 2
+
+
 def morph_candidates(elem, layer_profile, binsize):
-   morph, layer = elem
-   y0, y1 = layer_profile[layer]
-   return [
-        (morph, "%s:%d" % (layer, k), y, layer_profile)
-        for k, y in enumerate(np.arange(y0 + 0.5 * binsize, y1, binsize))
+    morph, layer = elem
+    y0, y1 = layer_profile[layer]
+    return [
+        (morph, ("%s:%d" % (layer, k), y, layer_profile))
+        for k, y in enumerate(get_layer_bins(y0, y1, binsize))
     ]
 
 
 def format_candidate(elem, layer_names):
-    morph, id_, y, layer_profile = elem
+    morph, (id_, y, layer_profile) = elem
     layer_values = " ".join(["%.3f %.3f" % layer_profile[layer] for layer in layer_names])
     return "%s %s %.3f %s" % (morph, id_, y, layer_values)
 
@@ -55,6 +62,7 @@ def main(morphdb_path, layer_profile, binsize, annotations, rules):
         .map(parse_morphdb)
         .distinct()
         .flatMap(partial(morph_candidates, layer_profile=layer_profile, binsize=binsize))
+        .repartitionAndSortWithinPartitions(100)
         .map(partial(format_candidate, layer_names=layer_names))
         .pipe(score_cmd, env=os.environ)
         .map(parse_score)
