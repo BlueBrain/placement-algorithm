@@ -4,7 +4,6 @@ import math
 import numpy as np
 
 from functools import partial
-from pyspark import SparkContext
 
 
 SCORE_CMD = "scorePlacement --annotations {annotations} --rules {rules} --layers {layers}"
@@ -39,7 +38,7 @@ def format_candidate(elem, layer_names):
 def parse_score(elem):
     morph, id_, score = elem.split()
     layer, bin_id = id_.split(":")
-    return (morph, int(layer)), (int(bin_id), float(score))
+    return (morph, layer), (int(bin_id), float(score))
 
 
 def format_bin_scores(elem):
@@ -48,6 +47,8 @@ def format_bin_scores(elem):
 
 
 def main(morphdb_path, layer_profile, binsize, annotations, rules):
+    from pyspark import SparkContext
+
     layer_names = sorted(layer_profile)
 
     score_cmd = SCORE_CMD.format(

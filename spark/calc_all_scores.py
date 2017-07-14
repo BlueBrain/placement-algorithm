@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 
 from functools import partial
-from pyspark import SparkContext
 
 from voxcell import CellCollection
 
@@ -51,10 +50,12 @@ def format_candidate(elem, layer_names):
 
 def parse_score(elem):
     morph, id_, score = elem.split()
-    return (int(id_), (float(score), morph))
+    return (id_, (float(score), morph))
 
 
 def main(morphdb_path, mvd3_path, annotations, rules):
+    from pyspark import SparkContext
+
     layer_names = ['1', '2', '3', '4', '5', '6']
 
     score_cmd = SCORE_CMD.format(
