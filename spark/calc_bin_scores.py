@@ -10,8 +10,13 @@ SCORE_CMD = "scorePlacement --annotations {annotations} --rules {rules} --layers
 
 
 def parse_morphdb(elem):
-    morph, layer, _ = elem.split(None, 2)
-    return morph, layer
+    morph, layer, other = elem.split(None, 2)
+    return (morph, layer), other
+
+
+def drop_value(elem):
+    k, _ = elem
+    return k
 
 
 def get_layer_bins(y0, y1, binsize):
@@ -41,9 +46,10 @@ def parse_score(elem):
     return (morph, layer), (int(bin_id), float(score))
 
 
-def format_bin_scores(elem):
-    (morph, layer), values = elem
-    return "%s %s %s" % (morph, layer, " ".join(["%.3f" % v[1] for v in sorted(values)]))
+def format_result(elem):
+    (morph, layer), (other, scores) = elem
+    scores = [v[1] for v in sorted(scores)]
+    return " ".join([morph, layer, other] + ["%.3f" % x for x in scores])
 
 
 def main(morphdb_path, layer_profile, binsize, annotations, rules):
@@ -58,9 +64,10 @@ def main(morphdb_path, layer_profile, binsize, annotations, rules):
     )
 
     sc = SparkContext()
-    result = (sc
-        .textFile(morphdb_path)
-        .map(parse_morphdb)
+    morphdb = sc.textFile(morphdb_path).map(parse_morphdb)
+
+    scores = (morphdb
+        .map(drop_value)
         .distinct()
         .flatMap(partial(morph_candidates, layer_profile=layer_profile, binsize=binsize))
         .repartitionAndSortWithinPartitions(100)
@@ -68,8 +75,8 @@ def main(morphdb_path, layer_profile, binsize, annotations, rules):
         .pipe(score_cmd, env=os.environ)
         .map(parse_score)
         .groupByKey()
-        .map(format_bin_scores)
     )
+    result = morphdb.join(scores).map(format_result)
 
     print "\n".join(map(str, result.collect()))
 

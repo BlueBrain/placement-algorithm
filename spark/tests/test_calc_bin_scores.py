@@ -6,8 +6,13 @@ import calc_bin_scores as test_module
 
 def test_parse_morphdb():
     actual = test_module.parse_morphdb("A 3 mtype ...")
-    expected = ("A", "3")
+    expected = (("A", "3"), "mtype ...")
     nt.assert_equal(actual, expected)
+
+def test_drop_value():
+    actual = test_module.drop_value(("A", "B"))
+    expected = "A"
+    return nt.assert_equal(actual, expected)
 
 def test_get_layer_bins():
     actual = test_module.get_layer_bins(0, 100, 23)
@@ -34,7 +39,8 @@ def test_parse_score():
     expected = (("A", "3"), (1, 0.42))
     nt.assert_equal(actual, expected)
 
-def test_format_bin_scores():
-    actual = test_module.format_bin_scores((("A", "3"), [(1, 0.0), (3, 0.2345), (2, 0.1)]))
-    expected = "A 3 0.000 0.100 0.234"
+def test_format_result():
+    elem = (("A", "3"), ("mtype ...", [(2, 0.5), (3, 0), (1, 1)]))
+    actual = test_module.format_result(elem)
+    expected = "A 3 mtype ... 1.000 0.500 0.000"
     nt.assert_equal(actual, expected)
