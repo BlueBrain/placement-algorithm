@@ -2,6 +2,9 @@
 
 module purge
 module load spark/2.0.1
-module load nse/scoreCandidates
+module load nse/scorePlacement
 
-spark-submit calc_bin_scores.py $@
+SLURM_ACCOUNT=proj59 bbp-spark-submit calc_bin_scores.py \
+	-m ../tests/data/extNeuronDB.dat \
+	-a ../tests/data/ \
+	-r ../tests/data/rules.xml

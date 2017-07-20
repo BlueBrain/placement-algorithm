@@ -1,0 +1,15 @@
+#!/bin/bash -eu
+set -o pipefail
+
+RESPONSE=$(init-cluster ${SLURM_ACCOUNT} ${SLURM_PARTITION:-cloud} ${SLURM_NNODES:-1})
+
+SLURM_ID=$(echo "$RESPONSE" | grep "To stop the cluster:" | cut -d: -f2 | cut -d' ' -f3)
+
+function cleanup {
+    scancel "$SLURM_ID"
+}
+trap cleanup exit
+
+MASTER=$(echo "$RESPONSE" | grep "Spark master available at:" | cut -d: -f2- | cut -d' ' -f2-)
+
+spark-submit $@
