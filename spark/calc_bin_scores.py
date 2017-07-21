@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os
 import argparse
 import math
@@ -64,21 +66,24 @@ def main(morphdb_path, layer_profile, binsize, annotations, rules):
     )
 
     sc = SparkContext()
-    morphdb = sc.textFile(morphdb_path).map(parse_morphdb)
 
-    scores = (morphdb
-        .map(drop_value)
-        .distinct()
-        .flatMap(partial(morph_candidates, layer_profile=layer_profile, binsize=binsize))
-        .repartitionAndSortWithinPartitions(100)
-        .map(partial(format_candidate, layer_names=layer_names))
-        .pipe(score_cmd, env=os.environ)
-        .map(parse_score)
-        .groupByKey()
-    )
-    result = morphdb.join(scores).map(format_result)
+    try:
+        morphdb = sc.textFile(morphdb_path).map(parse_morphdb)
+        scores = (morphdb
+            .map(drop_value)
+            .distinct()
+            .flatMap(partial(morph_candidates, layer_profile=layer_profile, binsize=binsize))
+            .repartitionAndSortWithinPartitions(100)
+            .map(partial(format_candidate, layer_names=layer_names))
+            .pipe(score_cmd, env=os.environ)
+            .map(parse_score)
+            .groupByKey()
+        )
+        result = morphdb.join(scores).map(format_result).collect()
+    finally:
+        sc.stop()
 
-    print "\n".join(map(str, result.collect()))
+    return result
 
 
 if __name__ == '__main__':
@@ -104,6 +109,11 @@ if __name__ == '__main__':
         type=int,
         help="Bin size (default=%(default)s)"
     )
+    parser.add_argument(
+        "-o", "--output",
+        required=True,
+        help="Path to output file"
+    )
     args = parser.parse_args()
 
     layer_profile = {
@@ -115,4 +125,7 @@ if __name__ == '__main__':
         '6': (       0,  700.378),
     }
 
-    main(args.morphdb, layer_profile, args.bin_size, args.annotations, args.rules)
+    result = main(args.morphdb, layer_profile, args.bin_size, args.annotations, args.rules)
+    with open(args.output, 'w') as f:
+        for line in result:
+            print(line, file=f)

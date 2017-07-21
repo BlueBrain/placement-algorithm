@@ -1,40 +1,21 @@
+from __future__ import print_function
+
 import os
 import argparse
-import heapq
 import numpy as np
-import pandas as pd
-
-from functools import partial
-
-from voxcell import CellCollection
 
 
 SCORE_CMD = "scorePlacement --annotations {annotations} --rules {rules} --layers {layers}"
 
 
-def load_morphdb(morphdb_path):
-    columns = ['morph', 'layer', 'mtype', 'etype']
-    morphdb = pd.read_csv(morphdb_path, sep=r"\s+", names=columns, usecols=columns)
-    return [
-        ((str(row.layer), row.mtype, row.etype), row.morph)
-        for _, row in morphdb.iterrows()
-    ]
+def parse_morphdb(elem):
+    morph, layer, mtype, etype, _ = elem.split(None, 4)
+    return ((layer, mtype, etype), morph)
 
 
-def load_positions(mvd3_path):
-    cells = CellCollection.load(mvd3_path).as_dataframe()
-    layer_profile = {
-        '1': (1916.807, 2081.756),
-        '2': (1767.931, 1916.807),
-        '3': (1415.006, 1767.931),
-        '4': (1225.434, 1415.006),
-        '5': ( 700.378, 1225.434),
-        '6': (       0,  700.378),
-    }
-    return [
-        ((str(row.layer), row.mtype, row.etype), (gid, row.y, layer_profile))
-        for gid, row in cells.iterrows()
-    ]
+def parse_positions(elem):
+    gid, layer, mtype, etype, y, layer_profile = elem.split(None, 5)
+    return ((layer, mtype, etype), (gid, y, layer_profile))
 
 
 def drop_key(elem):
@@ -42,44 +23,55 @@ def drop_key(elem):
     return v
 
 
-def format_candidate(elem, layer_names):
-    morph, (id_, y, layer_profile) = elem
-    layer_values = " ".join(["%.3f %.3f" % layer_profile[layer] for layer in layer_names])
-    return "%s %s %.3f %s" % (morph, id_, y, layer_values)
+def format_candidate(elem):
+    morph, (gid, y, layer_profile) = elem
+    return " ".join([morph, gid, y, layer_profile])
 
 
 def parse_score(elem):
-    morph, id_, score = elem.split()
-    return (id_, (float(score), morph))
+    morph, gid, score = elem.split()
+    return (gid, (morph, float(score)))
 
 
-def main(morphdb_path, mvd3_path, annotations, rules):
+def pick_morph(elem):
+    morphs, scores = zip(*elem)
+    scores = np.array(scores)
+    score_sum = np.sum(scores)
+    if score_sum > 0:
+        result = np.random.choice(morphs, p=scores / score_sum)
+    else:
+        result = "<none>"
+    return result
+
+
+def main(morphdb_path, annotations_dir, rules_path, positions_path, layers):
     from pyspark import SparkContext
 
-    layer_names = ['1', '2', '3', '4', '5', '6']
-
     score_cmd = SCORE_CMD.format(
-        annotations=annotations,
-        rules=rules,
-        layers=",".join(layer_names)
+        annotations=annotations_dir,
+        rules=rules_path,
+        layers=layers
     )
 
     sc = SparkContext()
 
-    morphdb = sc.parallelize(load_morphdb(morphdb_path))
-    positions = sc.parallelize(load_positions(mvd3_path))
-    result = (
-        morphdb.join(positions)
-        .map(drop_key)
-        .repartitionAndSortWithinPartitions(1000)
-        .map(partial(format_candidate, layer_names=layer_names))
-        .pipe(score_cmd, env=os.environ)
-        .map(parse_score)
-        .groupByKey()
-        .mapValues(lambda elem: heapq.nlargest(5, elem))
-    )
+    try:
+        morphdb = sc.textFile(morphdb_path).map(parse_morphdb).distinct()
+        positions = sc.textFile(positions_path).map(parse_positions)
+        scores = (
+            morphdb.join(positions)
+            .map(drop_key)
+            .repartitionAndSortWithinPartitions(1000)
+            .map(format_candidate)
+            .pipe(score_cmd, env=os.environ)
+            .map(parse_score)
+            .groupByKey()
+        )
+        result = scores.mapValues(pick_morph).sortByKey().collect()
+    finally:
+        sc.stop()
 
-    print "\n".join(map(str, result.collect()))
+    return result
 
 
 if __name__ == '__main__':
@@ -88,11 +80,6 @@ if __name__ == '__main__':
         "-m", "--morphdb",
         required=True,
         help="Path to MorphDB file"
-    )
-    parser.add_argument(
-        "-c", "--cells",
-        required=True,
-        help="Path to MVD3 with cell properties"
     )
     parser.add_argument(
         "-a", "--annotations",
@@ -104,6 +91,24 @@ if __name__ == '__main__':
         required=True,
         help="Path to placement rules file"
     )
+    parser.add_argument(
+        "-p", "--positions",
+        required=True,
+        help="Path to CSV with positions to consider"
+    )
+    parser.add_argument(
+        "-l", "--layers",
+        required=True,
+        help="Layer names as they appear in layer profile (comma-separated)"
+    )
+    parser.add_argument(
+        "-o", "--output",
+        required=True,
+        help="Path to output file"
+    )
     args = parser.parse_args()
 
-    main(args.morphdb, args.cells, args.annotations, args.rules)
+    result = main(args.morphdb, args.annotations, args.rules, args.positions, args.layers)
+    with open(args.output, 'w') as f:
+        for gid, morph in result:
+            print(gid, morph, file=f)

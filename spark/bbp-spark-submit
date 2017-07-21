@@ -10,6 +10,6 @@ function cleanup {
 }
 trap cleanup exit
 
-MASTER=$(echo "$RESPONSE" | grep "Spark master available at:" | cut -d: -f2- | cut -d' ' -f2-)
+export MASTER=$(echo "$RESPONSE" | grep "Spark master available at:" | cut -d: -f2- | cut -d' ' -f2-)
 
 spark-submit $@
