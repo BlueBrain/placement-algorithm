@@ -54,7 +54,7 @@ def format_result(elem):
     return " ".join([morph, layer, other] + ["%.3f" % x for x in scores])
 
 
-def main(morphdb_path, layer_profile, binsize, annotations, rules):
+def main(morphdb_path, layer_profile, binsize, annotations, rules, ntasks=100):
     from pyspark import SparkContext
 
     layer_names = sorted(layer_profile)
@@ -73,7 +73,7 @@ def main(morphdb_path, layer_profile, binsize, annotations, rules):
             .map(drop_value)
             .distinct()
             .flatMap(partial(morph_candidates, layer_profile=layer_profile, binsize=binsize))
-            .repartitionAndSortWithinPartitions(100)
+            .repartitionAndSortWithinPartitions(ntasks)
             .map(partial(format_candidate, layer_names=layer_names))
             .pipe(score_cmd, env=os.environ)
             .map(parse_score)
@@ -110,6 +110,12 @@ if __name__ == '__main__':
         help="Bin size (default=%(default)s)"
     )
     parser.add_argument(
+        "-t", "--ntasks",
+        type=int,
+        default=100,
+        help="Number of Spark tasks to use for scoring (default: %(default)s)"
+    )
+    parser.add_argument(
         "-o", "--output",
         required=True,
         help="Path to output file"
@@ -125,7 +131,7 @@ if __name__ == '__main__':
         '6': (       0,  700.378),
     }
 
-    result = main(args.morphdb, layer_profile, args.bin_size, args.annotations, args.rules)
+    result = main(args.morphdb, layer_profile, args.bin_size, args.annotations, args.rules, ntasks=args.ntasks)
     with open(args.output, 'w') as f:
         for line in result:
             print(line, file=f)

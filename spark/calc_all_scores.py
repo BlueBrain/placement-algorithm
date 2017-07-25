@@ -44,7 +44,7 @@ def pick_morph(elem):
     return result
 
 
-def main(morphdb_path, annotations_dir, rules_path, positions_path, layers):
+def main(morphdb_path, annotations_dir, rules_path, positions_path, layers, ntasks=1000):
     from pyspark import SparkContext
 
     score_cmd = SCORE_CMD.format(
@@ -61,7 +61,7 @@ def main(morphdb_path, annotations_dir, rules_path, positions_path, layers):
         scores = (
             morphdb.join(positions)
             .map(drop_key)
-            .repartitionAndSortWithinPartitions(1000)
+            .repartitionAndSortWithinPartitions(ntasks)
             .map(format_candidate)
             .pipe(score_cmd, env=os.environ)
             .map(parse_score)
@@ -102,13 +102,19 @@ if __name__ == '__main__':
         help="Layer names as they appear in layer profile (comma-separated)"
     )
     parser.add_argument(
+        "-t", "--ntasks",
+        type=int,
+        default=100,
+        help="Number of Spark tasks to use for scoring (default: %(default)s)"
+    )
+    parser.add_argument(
         "-o", "--output",
         required=True,
         help="Path to output file"
     )
     args = parser.parse_args()
 
-    result = main(args.morphdb, args.annotations, args.rules, args.positions, args.layers)
+    result = main(args.morphdb, args.annotations, args.rules, args.positions, args.layers, ntasks=args.ntasks)
     with open(args.output, 'w') as f:
         for gid, morph in result:
             print(gid, morph, file=f)
