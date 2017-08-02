@@ -4,13 +4,15 @@ import os
 import argparse
 import numpy as np
 
+from functools import partial
+
 
 SCORE_CMD = "scorePlacement --annotations {annotations} --rules {rules} --layers {layers}"
 
 
 def parse_morphdb(elem):
     morph, layer, mtype, etype, _ = elem.split(None, 4)
-    return ((layer, mtype, etype), morph)
+    return (morph, (layer, mtype, etype))
 
 
 def parse_positions(elem):
@@ -18,9 +20,9 @@ def parse_positions(elem):
     return ((layer, mtype, etype), (gid, y, layer_profile))
 
 
-def drop_key(elem):
-    _, v = elem
-    return v
+def morph_candidates(elem, positions):
+    morph, key = elem
+    return [(morph, p) for p in positions.get(key, [])]
 
 
 def format_candidate(elem):
@@ -30,17 +32,17 @@ def format_candidate(elem):
 
 def parse_score(elem):
     morph, gid, score = elem.split()
-    return (gid, (morph, float(score)))
+    return (int(gid), (morph, float(score)))
 
 
 def pick_morph(elem):
-    morphs, scores = zip(*elem)
-    scores = np.array(scores)
-    score_sum = np.sum(scores)
+    morph, score = zip(*elem)
+    score_sum = np.sum(score)
     if score_sum > 0:
-        result = np.random.choice(morphs, p=scores / score_sum)
+        idx = np.random.choice(np.arange(len(morph)), p=score / score_sum)
+        result = morph[idx], score[idx]
     else:
-        result = "<none>"
+        result = 'N/A', 'N/A'
     return result
 
 
@@ -56,12 +58,17 @@ def main(morphdb_path, annotations_dir, rules_path, positions_path, layers, ntas
     sc = SparkContext()
 
     try:
-        morphdb = sc.textFile(morphdb_path).map(parse_morphdb).distinct()
+        morphdb = sc.textFile(morphdb_path).map(parse_morphdb)
         positions = sc.textFile(positions_path).map(parse_positions)
-        scores = (
-            morphdb.join(positions)
-            .map(drop_key)
+        positions_map = sc.broadcast(positions
+            .groupByKey()
+            .mapValues(list)
+            .collectAsMap()
+        )
+        scores = (morphdb
+            .distinct()
             .repartitionAndSortWithinPartitions(ntasks)
+            .flatMap(partial(morph_candidates, positions=positions_map.value))
             .map(format_candidate)
             .pipe(score_cmd, env=os.environ)
             .map(parse_score)
@@ -116,5 +123,5 @@ if __name__ == '__main__':
 
     result = main(args.morphdb, args.annotations, args.rules, args.positions, args.layers, ntasks=args.ntasks)
     with open(args.output, 'w') as f:
-        for gid, morph in result:
-            print(gid, morph, file=f)
+        for gid, (morph, score) in result:
+            print(gid, morph, score, file=f)
