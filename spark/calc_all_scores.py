@@ -36,16 +36,17 @@ def parse_score(elem):
 
 
 def pick_morph(elem, seed=None):
-    morph, score = zip(*elem)
+    key, values = elem
+    morph, score = zip(*sorted(values))
     score_sum = np.sum(score)
     if score_sum > 0:
         if seed is not None:
-            np.random.seed(hash((morph, seed)) % (2 ** 32))
+            np.random.seed(hash((key, seed)) % (2 ** 32))
         idx = np.random.choice(np.arange(len(morph)), p=score / score_sum)
         result = morph[idx], score[idx]
     else:
         result = 'N/A', 'N/A'
-    return result
+    return key, result
 
 
 def main(morphdb_path, annotations_dir, rules_path, positions_path, layers, seed=None, ntasks=1000):
@@ -76,7 +77,7 @@ def main(morphdb_path, annotations_dir, rules_path, positions_path, layers, seed
             .map(parse_score)
             .groupByKey()
         )
-        result = scores.mapValues(partial(pick_morph, seed=seed)).sortByKey().collect()
+        result = scores.map(partial(pick_morph, seed=seed)).sortByKey().collect()
     finally:
         sc.stop()
 
