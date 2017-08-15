@@ -35,10 +35,12 @@ def parse_score(elem):
     return (int(gid), (morph, float(score)))
 
 
-def pick_morph(elem):
+def pick_morph(elem, seed=None):
     morph, score = zip(*elem)
     score_sum = np.sum(score)
     if score_sum > 0:
+        if seed is not None:
+            np.random.seed(hash((morph, seed)) % (2 ** 32))
         idx = np.random.choice(np.arange(len(morph)), p=score / score_sum)
         result = morph[idx], score[idx]
     else:
@@ -46,7 +48,7 @@ def pick_morph(elem):
     return result
 
 
-def main(morphdb_path, annotations_dir, rules_path, positions_path, layers, ntasks=1000):
+def main(morphdb_path, annotations_dir, rules_path, positions_path, layers, seed=None, ntasks=1000):
     from pyspark import SparkContext
 
     score_cmd = SCORE_CMD.format(
@@ -74,7 +76,7 @@ def main(morphdb_path, annotations_dir, rules_path, positions_path, layers, ntas
             .map(parse_score)
             .groupByKey()
         )
-        result = scores.mapValues(pick_morph).sortByKey().collect()
+        result = scores.mapValues(partial(pick_morph, seed=seed)).sortByKey().collect()
     finally:
         sc.stop()
 
@@ -109,6 +111,12 @@ if __name__ == '__main__':
         help="Layer names as they appear in layer profile (comma-separated)"
     )
     parser.add_argument(
+        "-s", "--seed",
+        type=int,
+        default=None,
+        help="Random number generator seed"
+    )
+    parser.add_argument(
         "-t", "--ntasks",
         type=int,
         default=100,
@@ -121,7 +129,7 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    result = main(args.morphdb, args.annotations, args.rules, args.positions, args.layers, ntasks=args.ntasks)
+    result = main(args.morphdb, args.annotations, args.rules, args.positions, args.layers, seed=args.seed, ntasks=args.ntasks)
     with open(args.output, 'w') as f:
         for gid, (morph, score) in result:
             print(gid, morph, score, file=f)
