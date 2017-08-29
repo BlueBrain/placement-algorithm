@@ -24,16 +24,35 @@ def test_format_candidate():
 
 def test_parse_score():
     actual = test_module.parse_score("morph-A 42 0.42")
-    expected = (42, ("morph-A", 0.42))
+    expected = ("42", ("morph-A", 0.42))
     nt.assert_equal(actual, expected)
 
 def test_pick_morph_1():
-    actual = test_module.pick_morph([("morph-A", 0.), ("morph-B", 0.)])
-    expected = "N/A", "N/A"
+    actual = test_module.pick_morph(("42", [("morph-A", 0.), ("morph-B", 0.)]))
+    expected = [
+        ("42", ("N/A", 0.0)),
+    ]
     nt.assert_equal(actual, expected)
 
 def test_pick_morph_2():
-    actual = test_module.pick_morph([("morph-A", 0.1), ("morph-B", 0.)])
-    expected = "morph-A", 0.1
+    actual = test_module.pick_morph(("42", [("morph-A", 0.1), ("morph-B", 0.)]))
+    expected = [
+        ("42", ("morph-A", 0.1)),
+    ]
     nt.assert_equal(actual, expected)
 
+def test_pick_morph_3():
+    actual = test_module.pick_morph(("42;2", [("morph-A", 0.), ("morph-B", 0.)]))
+    expected = [
+        ("42;0", ("N/A", 0.0)),
+        ("42;1", ("N/A", 0.0)),
+    ]
+    nt.assert_equal(actual, expected)
+
+def test_pick_morph_4():
+    actual = test_module.pick_morph(("42;2", [("morph-A", 0.1), ("morph-B", 0.)]))
+    expected = [
+        ("42;0", ("morph-A", 0.1)),
+        ("42;1", ("morph-A", 0.1)),
+    ]
+    nt.assert_equal(actual, expected)
