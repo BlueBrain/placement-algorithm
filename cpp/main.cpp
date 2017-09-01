@@ -228,6 +228,34 @@ AnnotationRules parseAnnotation(const std::string& filename, const PlacementRule
 }
 
 
+LayerProfile parseLayerRatio(const std::string& value, const std::vector<std::string>& layerNames)
+{
+    LayerProfile result;
+
+    std::stringstream ss(value);
+
+    float y;
+    float total = 0;
+    for (const auto& layer: layerNames) {
+        if (!(ss >> y)) {
+            throw std::runtime_error("Invalid layer ratio profile");
+        }
+        result[layer] = std::make_pair(total, total + y);
+        total += y;
+        if (ss.peek() == ',') {
+            ss.ignore();
+        }
+    }
+
+    for (auto& item: result) {
+        item.second.first /= total;
+        item.second.second /= total;
+    }
+
+    return result;
+}
+
+
 float aggregateOptionalScores(const std::vector<float>& scores)
 {
     if (scores.empty()) {
@@ -313,6 +341,33 @@ private:
 };
 
 
+class ShortCandidateReader: public CandidateReader
+{
+public:
+    ShortCandidateReader(std::istream& stream, const LayerProfile& layerRatio)
+        : stream_(stream)
+        , layerRatio_(layerRatio)
+    {
+    }
+
+    virtual bool fetchNext() override
+    {
+        float height;
+        stream_ >> candidate_.morph >> candidate_.id >> candidate_.y >> height;
+        candidate_.yLayers = layerRatio_;
+        for (auto& item: candidate_.yLayers) {
+            item.second.first *= height;
+            item.second.second *= height;
+        }
+        return bool(stream_);
+    }
+
+private:
+    std::istream& stream_;
+    const LayerProfile layerRatio_;
+};
+
+
 
 int main(int argc, char* argv[])
 {
@@ -324,6 +379,7 @@ int main(int argc, char* argv[])
         ("annotations,a", po::value<std::string>(), "Path to annotations folder")
         ("rules,r", po::value<std::string>(), "Path to placement rules file")
         ("layers,l", po::value<std::string>(), "Layer names as they appear in layer profile")
+        ("profile,p", po::value<std::string>(), "Layer thickness ratio to use for 'short' candidate form (total thickness only)")
     ;
 
     po::variables_map vm;
@@ -354,7 +410,13 @@ int main(int argc, char* argv[])
     std::vector<std::string> layerNames;
     boost::split(layerNames, vm["layers"].as<std::string>(), boost::is_any_of(","));
 
-    std::unique_ptr<CandidateReader> candidateReader(new FullCandidateReader(std::cin, layerNames));
+    std::unique_ptr<CandidateReader> candidateReader;
+    if (vm.count("profile") > 0) {
+        const auto layerRatio = parseLayerRatio(vm["profile"].as<std::string>(), layerNames);
+        candidateReader.reset(new ShortCandidateReader(std::cin, layerRatio));
+    } else {
+        candidateReader.reset(new FullCandidateReader(std::cin, layerNames));
+    }
 
     std::string currentMorph;
     boost::optional<AnnotationRules> annotations;
