@@ -9,6 +9,7 @@
 
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -227,17 +228,6 @@ AnnotationRules parseAnnotation(const std::string& filename, const PlacementRule
 }
 
 
-bool getCandidate(std::istream& is, const std::vector<std::string>& layerNames, Candidate& candidate)
-{
-    is >> candidate.morph >> candidate.id >> candidate.y;
-    for (const auto& layer: layerNames) {
-        auto& ys = candidate.yLayers[layer];
-        is >> ys.first >> ys.second;
-    }
-    return bool(is);
-}
-
-
 float aggregateOptionalScores(const std::vector<float>& scores)
 {
     if (scores.empty()) {
@@ -282,8 +272,52 @@ float scoreCandidate(const Candidate& candidate, const AnnotationRules& annotati
 }
 
 
+class CandidateReader
+{
+public:
+    virtual ~CandidateReader() {};
+
+    const Candidate& get() const
+    {
+        return candidate_;
+    }
+
+    virtual bool fetchNext() = 0;
+
+protected:
+    Candidate candidate_;
+};
+
+
+class FullCandidateReader: public CandidateReader
+{
+public:
+    FullCandidateReader(std::istream& stream, const std::vector<std::string>& layerNames)
+        : stream_(stream)
+        , layerNames_(layerNames)
+    {}
+
+    virtual bool fetchNext() override
+    {
+        stream_ >> candidate_.morph >> candidate_.id >> candidate_.y;
+        for (const auto& layer: layerNames_) {
+            auto& ys = candidate_.yLayers[layer];
+            stream_ >> ys.first >> ys.second;
+        }
+        return bool(stream_);
+    }
+
+private:
+    std::istream& stream_;
+    const std::vector<std::string> layerNames_;
+};
+
+
+
 int main(int argc, char* argv[])
 {
+    std::ios_base::sync_with_stdio(false);
+
     po::options_description desc("Score placement candidates");
     desc.add_options()
         ("help", "Print help message")
@@ -320,12 +354,14 @@ int main(int argc, char* argv[])
     std::vector<std::string> layerNames;
     boost::split(layerNames, vm["layers"].as<std::string>(), boost::is_any_of(","));
 
-    Candidate candidate;
+    std::unique_ptr<CandidateReader> candidateReader(new FullCandidateReader(std::cin, layerNames));
+
     std::string currentMorph;
     boost::optional<AnnotationRules> annotations;
 
     std::cout << std::fixed << std::setprecision(3);
-    while (getCandidate(std::cin, layerNames, candidate)) {
+    while (candidateReader->fetchNext()) {
+        const auto& candidate = candidateReader->get();
         if (candidate.morph != currentMorph) {
             const auto annotationPath = annotationDir + "/" + candidate.morph + ".xml";
             if (boost::filesystem::exists(annotationPath)) {
