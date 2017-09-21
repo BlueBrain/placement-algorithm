@@ -1,0 +1,13 @@
+{
+  "name": "placementAlgorithm",
+  "description": "Placement algorithm",
+  "version": "0.0",
+  "repository": {
+    "type": "git",
+    "url": "",
+    "issuesurl": "https://bbpcode.epfl.ch/code/#/admin/projects/building/placementAlgorithm,tags"
+  },
+  "author": "Michael Reimann (michael.reimann@epfl.ch), Arseny Povolotsky (arseny.povolotsky@epfl.ch)",
+  "contributors": ["Arseny Povolotsky, Michael Reimann and others"],
+  "license": "BBP-internal-confidential"
+}
