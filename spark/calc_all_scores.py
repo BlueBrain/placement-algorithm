@@ -20,6 +20,11 @@ def parse_positions(elem):
     return ((layer, mtype, etype), (id_, y, layer_profile))
 
 
+def parse_index(elem):
+    gid, id_ = elem.split()
+    return (id_, int(gid))
+
+
 def morph_candidates(elem, positions):
     morph, key = elem
     return [(morph, p) for p in positions.get(key, [])]
@@ -35,16 +40,12 @@ def parse_score(elem):
     return (id_, (morph, float(score)))
 
 
-def pick_morph(elem, seed=None):
+def pick_morph(elem, index=None, seed=None):
     key, values = elem
-
-    if ";" in key:
-        id_, count = key.split(";", 1)
-        count = int(count)
-        format_id = lambda k: "%s;%d" % (id_, k)
+    if index is None:
+        ids = [key]
     else:
-        id_, count = key, 1
-        format_id = lambda _: id_
+        ids = index[key]
 
     morph, score = zip(*sorted(values))
 
@@ -52,17 +53,19 @@ def pick_morph(elem, seed=None):
     if score_sum > 0:
         if seed is not None:
             np.random.seed(hash((key, seed)) % (2 ** 32))
-        chosen = np.random.choice(np.arange(len(morph)), size=count, replace=True, p=score / score_sum)
+        chosen = np.random.choice(np.arange(len(morph)), size=len(ids), replace=True, p=score / score_sum)
         return [
-            (format_id(k), (morph[j], score[j])) for k, j in enumerate(chosen)
+            (_id, (morph[k], score[k])) for _id, k in zip(ids, chosen)
         ]
     else:
-        return [
-            (format_id(k), ("N/A", 0.0)) for k in xrange(count)
-        ]
+        return [(_id, ("N/A", 0.0)) for _id in ids]
 
 
-def main(morphdb_path, annotations_dir, rules_path, positions_path, layers, profile, seed=None, ntasks=1000):
+def main(
+    morphdb_path, annotations_dir, rules_path, positions_path, index_path,
+    layers, profile,
+    seed=None, ntasks=1000
+):
     from pyspark import SparkContext
 
     score_cmd = SCORE_CMD.format(
@@ -78,22 +81,31 @@ def main(morphdb_path, annotations_dir, rules_path, positions_path, layers, prof
 
     try:
         morphdb = sc.textFile(morphdb_path).map(parse_morphdb)
-        positions = sc.textFile(positions_path).map(parse_positions)
-        positions_map = sc.broadcast(positions
+        positions = sc.broadcast(sc.textFile(positions_path)
+            .map(parse_positions)
             .groupByKey()
             .mapValues(list)
             .collectAsMap()
-        )
+        ).value
+        if index_path is None:
+            index = None
+        else:
+            index = sc.broadcast(sc.textFile(index_path)
+                .map(parse_index)
+                .groupByKey()
+                .mapValues(list)
+                .collectAsMap()
+            ).value
         scores = (morphdb
             .distinct()
             .repartitionAndSortWithinPartitions(ntasks)
-            .flatMap(partial(morph_candidates, positions=positions_map.value))
+            .flatMap(partial(morph_candidates, positions=positions))
             .map(format_candidate)
             .pipe(score_cmd, env=os.environ)
             .map(parse_score)
             .groupByKey()
         )
-        result = scores.flatMap(partial(pick_morph, seed=seed)).sortByKey().collect()
+        result = scores.flatMap(partial(pick_morph, index=index, seed=seed)).sortByKey().collect()
     finally:
         sc.stop()
 
@@ -123,23 +135,28 @@ if __name__ == '__main__':
         help="Layer names as they appear in layer profile (comma-separated)"
     )
     parser.add_argument(
-        "-p", "--profile",
+        "--profile",
         default=None,
         help="Layer thickness ratio to use for 'short' candidate form (comma-separated)"
     )
     parser.add_argument(
-        "-i", "--positions",
+        "-p", "--positions",
         required=True,
-        help="Path to CSV with positions to consider"
+        help="Path to .tsv with positions to consider"
     )
     parser.add_argument(
-        "-s", "--seed",
+        "-i", "--index",
+        default=None,
+        help="Path to .tsv with positions reverse index (optional)"
+    )
+    parser.add_argument(
+        "--seed",
         type=int,
         default=None,
         help="Random number generator seed"
     )
     parser.add_argument(
-        "-t", "--ntasks",
+        "--ntasks",
         type=int,
         default=100,
         help="Number of Spark tasks to use for scoring (default: %(default)s)"
@@ -151,7 +168,11 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    result = main(args.morphdb, args.annotations, args.rules, args.positions, args.layers, args.profile, seed=args.seed, ntasks=args.ntasks)
+    result = main(
+        args.morphdb, args.annotations, args.rules, args.positions, args.index,
+        args.layers, args.profile,
+        seed=args.seed, ntasks=args.ntasks
+    )
     with open(args.output, 'w') as f:
         for (id_, (morph, score)) in result:
-            print(id_, morph, "%.3f" % score, file=f)
+            print(id_, morph, "%.3f" % score, sep="\t", file=f)

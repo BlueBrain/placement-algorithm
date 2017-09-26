@@ -42,17 +42,19 @@ def test_pick_morph_2():
     nt.assert_equal(actual, expected)
 
 def test_pick_morph_3():
-    actual = test_module.pick_morph(("42;2", [("morph-A", 0.), ("morph-B", 0.)]))
+    index = {"42": [11, 22]}
+    actual = test_module.pick_morph(("42", [("morph-A", 0.), ("morph-B", 0.)]), index=index)
     expected = [
-        ("42;0", ("N/A", 0.0)),
-        ("42;1", ("N/A", 0.0)),
+        (11, ("N/A", 0.0)),
+        (22, ("N/A", 0.0)),
     ]
     nt.assert_equal(actual, expected)
 
 def test_pick_morph_4():
-    actual = test_module.pick_morph(("42;2", [("morph-A", 0.1), ("morph-B", 0.)]))
+    index = {"42": [11, 22]}
+    actual = test_module.pick_morph(("42", [("morph-A", 0.1), ("morph-B", 0.)]), index=index)
     expected = [
-        ("42;0", ("morph-A", 0.1)),
-        ("42;1", ("morph-A", 0.1)),
+        (11, ("morph-A", 0.1)),
+        (22, ("morph-A", 0.1)),
     ]
     nt.assert_equal(actual, expected)
