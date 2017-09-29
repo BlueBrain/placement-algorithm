@@ -47,13 +47,23 @@ def pick_morph(elem, index=None, seed=None):
     else:
         ids = index[key]
 
-    morph, score = zip(*sorted(values))
+    morph, score = zip(*values)
+    morph, score = np.array(morph), np.array(score)
+
+    # Choose morphologies with top 10% score
+    top10_num = 1 + len(score) // 10
+    top10_idx = np.argpartition(score, -top10_num)[-top10_num:]
+    morph, score = morph[top10_idx], score[top10_idx]
 
     score_sum = np.sum(score)
     if score_sum > 0:
         if seed is not None:
             np.random.seed(hash((key, seed)) % (2 ** 32))
-        chosen = np.random.choice(np.arange(len(morph)), size=len(ids), replace=True, p=score / score_sum)
+            # Sort by morphology name to ensure reproducible random choice
+            morph_idx = np.argsort(morph)
+            morph, score = morph[morph_idx], score[morph_idx]
+        prob = score.astype(float) / score_sum
+        chosen = np.random.choice(np.arange(len(morph)), size=len(ids), replace=True, p=prob)
         return [
             (_id, (morph[k], score[k])) for _id, k in zip(ids, chosen)
         ]
