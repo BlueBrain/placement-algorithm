@@ -10,6 +10,9 @@ import numpy as np
 import pandas as pd
 
 
+# Optional score to give to annotations with no optional rules
+BASE_OPTIONAL_SCORE = 0.1
+
 L = logging.getLogger(__name__)
 
 
@@ -96,7 +99,7 @@ def aggregate_optional_scores(scores, p):
     if len(scores) > 0:
         return generalized_mean(1.0 + scores, p) - 1.0
     else:
-        return 0.0
+        return BASE_OPTIONAL_SCORE
 
 
 def aggregate_strict_scores(scores):
@@ -123,7 +126,7 @@ def score_candidate(candidate, annotation, rules, p=1.0):
     strict_score = aggregate_strict_scores(strict_scores)
     optional_score = aggregate_optional_scores(optional_scores, p)
     L.info("%s: strict=%.3f; optional=%.3f", candidate['id'], strict_score, optional_score)
-    return strict_score * (1.0 + optional_score) / 2
+    return strict_score * optional_score
 
 
 def load_rules(filepath):

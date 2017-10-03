@@ -52,7 +52,7 @@ def test_generalized_mean():
 def test_aggregate_optional_scores():
     nt.assert_equal(
         test_module.aggregate_optional_scores([], 1.0),
-        0.0
+        0.1
     )
     nt.assert_almost_equal(
         test_module.aggregate_optional_scores([0.0, 0.5, 1.0], p=1.0),

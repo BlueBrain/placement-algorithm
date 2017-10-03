@@ -24,6 +24,9 @@ typedef std::pair<std::string, float> YRelative;
 typedef std::unordered_map<std::string, std::pair<float, float>> LayerProfile;
 
 
+const float BASE_OPTIONAL_SCORE = 0.1;  // TODO: pass as command-line parameter?
+
+
 float getAbsoluteY(const YRelative& yRel, const LayerProfile& yLayers)
 {
     const auto& layer = yLayers.at(yRel.first);
@@ -259,7 +262,7 @@ LayerProfile parseLayerRatio(const std::string& value, const std::vector<std::st
 float aggregateOptionalScores(const std::vector<float>& scores)
 {
     if (scores.empty()) {
-        return 1.0;
+        return BASE_OPTIONAL_SCORE;
     }
     return std::accumulate(scores.begin(), scores.end(), 0.0) / scores.size();
 }
@@ -296,7 +299,7 @@ float scoreCandidate(const Candidate& candidate, const AnnotationRules& annotati
     const float strictScore = aggregateStrictScores(strictScores);
     const float optionalScore = aggregateOptionalScores(optionalScores);
 
-    return strictScore * (1. + optionalScore) / 2.;
+    return strictScore * optionalScore;
 }
 
 
