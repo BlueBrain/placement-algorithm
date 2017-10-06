@@ -110,6 +110,7 @@ def aggregate_strict_scores(scores):
 
 
 def score_candidate(candidate, annotation, rules, p=1.0):
+    log_tag = "(%s; %s)" % (candidate['id'], candidate['morph'])
     strict_scores, optional_scores = [], []
     for item in annotation:
         if item['rule'] not in rules:
@@ -117,7 +118,7 @@ def score_candidate(candidate, annotation, rules, p=1.0):
             continue
         rule = rules[item['rule']]
         score = rule(candidate=candidate, annotation=item)
-        L.debug("%s: score=%.3f (%s)", candidate['id'], score, item['rule'])
+        L.debug("%s: score=%.3f (%s)", log_tag, score, item['rule'])
         if rule.strict:
             strict_scores.append(score)
         else:
@@ -125,7 +126,7 @@ def score_candidate(candidate, annotation, rules, p=1.0):
 
     strict_score = aggregate_strict_scores(strict_scores)
     optional_score = aggregate_optional_scores(optional_scores, p)
-    L.info("%s: strict=%.3f; optional=%.3f", candidate['id'], strict_score, optional_score)
+    L.info("%s: strict=%.3f; optional=%.3f", log_tag, strict_score, optional_score)
     return strict_score * optional_score
 
 
@@ -136,8 +137,6 @@ def load_rules(filepath):
     for elem in etree.findall('*/rule'):
         attr = elem.attrib
         rule_id = attr['id']
-        if rule_id in result:
-            raise ValueError("Duplicate rule id: '%s'" % rule_id)
         rule_type = attr['type']
         if rule_type in DISPATCH_RULE:
             result[rule_id] = DISPATCH_RULE[rule_type].from_attr(attr)
@@ -170,6 +169,11 @@ if __name__ == '__main__':
         help="Layer names as they appear in layer profile (comma-separated)"
     )
     parser.add_argument(
+        "--profile",
+        default=None,
+        help="Layer thickness ratio to use for 'short' candidate form (total thickness only)"
+    )
+    parser.add_argument(
         "-p", "--p-order",
         type=float,
         default=1.0,
@@ -192,8 +196,24 @@ if __name__ == '__main__':
 
     rules = load_rules(args.rules)
 
-    columns = ['morph', 'id', 'y'] + sum([['%s_0' % layer, '%s_1' % layer] for layer in args.layers.split(",")], [])
-    candidates = pd.read_csv(sys.stdin, sep=r'\s+', names=columns)
+    layers = args.layers.split(",")
+
+    base_columns = ['morph', 'id', 'y']
+    if args.profile:
+        profile = np.array(args.profile.split(","), dtype=float)
+        profile/= np.sum(profile)
+        candidates = pd.read_csv(sys.stdin, sep=r'\s+', names=base_columns + ['h'])
+        y0, y1 = None, 0
+        for layer, dy in zip(layers, profile):
+            y0 = y1
+            y1 = y0 + dy
+            candidates['%s_0' % layer] = y0 * candidates['h']
+            candidates['%s_1' % layer] = y1 * candidates['h']
+        del candidates['h']
+    else:
+        layer_columns = sum([['%s_0' % layer, '%s_1' % layer] for layer in layers], [])
+        candidates = pd.read_csv(sys.stdin, sep=r'\s+', names=base_columns + layer_columns)
+
     for _, candidate in candidates.iterrows():
         annotation_path = os.path.join(args.annotations, candidate.morph + ".xml")
         try:
