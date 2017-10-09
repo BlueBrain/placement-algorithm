@@ -25,7 +25,9 @@ typedef std::pair<std::string, float> YRelative;
 typedef std::unordered_map<std::string, std::pair<float, float>> LayerProfile;
 
 
-const float MISSING_RULE_SCORE = 0.1;  // TODO: pass as command-line parameter?
+// TODO: pass as command-line parameter?
+const float DEFAULT_STRICT_SCORE = 1.0;
+const float DEFAULT_OPTIONAL_SCORE = 0.1;
 
 
 const std::unordered_set<std::string> IGNORED_RULES {
@@ -390,12 +392,26 @@ LayerProfile parseLayerRatio(const std::string& value, const std::vector<std::st
 }
 
 
+float harmonicMean(const std::vector<float>& xs, float eps=1e-3)
+{
+    float sum = 0.0f;
+    for (auto x: xs) {
+        if (std::fabs(x) < eps) {
+            return 0.0f;
+        } else {
+            sum += 1.0f / x;
+        }
+    }
+    return xs.size() / sum;
+}
+
+
 float aggregateOptionalScores(const std::vector<float>& scores)
 {
     if (scores.empty()) {
         return 1.0;
     }
-    return std::accumulate(scores.begin(), scores.end(), 0.0) / scores.size();
+    return harmonicMean(scores);
 }
 
 
@@ -415,9 +431,11 @@ float scoreCandidate(const Candidate& candidate, const BoundPlacementRules& morp
 
     for (const auto& morphRule: morphRules) {
         const PlacementRule& rule = *(morphRule.rule);
-        float score = MISSING_RULE_SCORE;
+        float score;
         if (morphRule.annotation) {
             score = rule.apply(candidate, *morphRule.annotation);
+        } else {
+            score = rule.strict() ? DEFAULT_STRICT_SCORE : DEFAULT_OPTIONAL_SCORE;
         }
         //std::cerr << candidate.id << ": score=" << score << " (" << item.rule << ")" << std::endl;
         if (rule.strict()) {

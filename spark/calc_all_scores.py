@@ -40,7 +40,7 @@ def parse_score(elem):
     return (id_, (morph, float(score)))
 
 
-def pick_morph(elem, index=None, seed=None):
+def pick_morph(elem, alpha=1.0, index=None, seed=None):
     key, values = elem
     if index is None:
         ids = [key]
@@ -54,6 +54,8 @@ def pick_morph(elem, index=None, seed=None):
     top10_num = 1 + len(score) // 10
     top10_idx = np.argpartition(score, -top10_num)[-top10_num:]
     morph, score = morph[top10_idx], score[top10_idx]
+
+    score = score ** alpha
 
     score_sum = np.sum(score)
     if score_sum > 0:
@@ -73,7 +75,7 @@ def pick_morph(elem, index=None, seed=None):
 
 def main(
     morphdb_path, annotations_dir, rules_path, positions_path, index_path,
-    layers, profile,
+    layers, profile, alpha,
     seed=None, ntasks=1000
 ):
     from pyspark import SparkContext
@@ -115,7 +117,8 @@ def main(
             .map(parse_score)
             .groupByKey()
         )
-        result = scores.flatMap(partial(pick_morph, index=index, seed=seed)).sortByKey().collect()
+        pick_func = partial(pick_morph, alpha=alpha, index=index, seed=seed)
+        result = scores.flatMap(pick_func).sortByKey().collect()
     finally:
         sc.stop()
 
@@ -160,6 +163,12 @@ if __name__ == '__main__':
         help="Path to .tsv with positions reverse index (optional)"
     )
     parser.add_argument(
+        "--alpha",
+        type=float,
+        default=1.0,
+        help="Use `score ** alpha` as morphology choice probability (default: %(default)s)"
+    )
+    parser.add_argument(
         "--seed",
         type=int,
         default=None,
@@ -180,7 +189,7 @@ if __name__ == '__main__':
 
     result = main(
         args.morphdb, args.annotations, args.rules, args.positions, args.index,
-        args.layers, args.profile,
+        args.layers, args.profile, args.alpha,
         seed=args.seed, ntasks=args.ntasks
     )
     with open(args.output, 'w') as f:

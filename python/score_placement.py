@@ -12,7 +12,8 @@ import pandas as pd
 
 
 # Score to give to rules with missing annotations
-MISSING_RULE_SCORE = 0.1
+DEFAULT_STRICT_SCORE = 1.0
+DEFAULT_OPTIONAL_SCORE = 0.1
 
 # Known annotations to ignore
 IGNORED_RULES = {
@@ -106,7 +107,7 @@ def generalized_mean(x, p):
 def aggregate_optional_scores(scores, p):
     scores = np.array(scores)
     if len(scores) > 0:
-        return generalized_mean(1.0 + scores, p) - 1.0
+        return generalized_mean(scores, p)
     else:
         return 1.0
 
@@ -124,7 +125,7 @@ def score_candidate(candidate, morph_rules, p=1.0):
 
     for rule, annotation in morph_rules:
         if annotation is None:
-            score = MISSING_RULE_SCORE
+            score = DEFAULT_STRICT_SCORE if rule.strict else DEFAULT_OPTIONAL_SCORE
         else:
             score = rule(candidate=candidate, annotation=annotation)
         L.debug("%s: score=%.3f (%s)", log_tag, score, rule.id)
@@ -243,7 +244,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "-p", "--p-order",
         type=float,
-        default=1.0,
+        default=-1.0,
         help="p-order for optional scores generalized mean (default: %(default)s)",
     )
     parser.add_argument(
