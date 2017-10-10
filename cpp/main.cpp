@@ -13,6 +13,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 
 namespace po = boost::program_options;
@@ -24,7 +25,12 @@ typedef std::pair<std::string, float> YRelative;
 typedef std::unordered_map<std::string, std::pair<float, float>> LayerProfile;
 
 
-const float BASE_OPTIONAL_SCORE = 0.1;  // TODO: pass as command-line parameter?
+const float MISSING_RULE_SCORE = 0.1;  // TODO: pass as command-line parameter?
+
+
+const std::unordered_set<std::string> IGNORED_RULES {
+    "ScaleBias"
+};
 
 
 float getAbsoluteY(const YRelative& yRel, const LayerProfile& yLayers)
@@ -37,42 +43,65 @@ float getAbsoluteY(const YRelative& yRel, const LayerProfile& yLayers)
 struct Candidate
 {
     std::string morph;
+    std::string mtype;
     std::string id;
     float y;
     LayerProfile yLayers;
 };
 
 
-struct AnnotationRule
+struct Annotation
 {
-    std::string rule;
+    std::string ruleId;
     float yMin;
     float yMax;
 };
 
-typedef std::vector<AnnotationRule> AnnotationRules;
+typedef std::vector<Annotation> Annotations;
 
 
 class PlacementRule
 {
 public:
+    PlacementRule(const std::string& id):
+        id_(id)
+    {}
+
     virtual ~PlacementRule() {}
 
-    virtual float apply(const Candidate&, const AnnotationRule&) const = 0;
+    const std::string& id() const
+    {
+        return id_;
+    }
+
+
+    virtual float apply(const Candidate&, const Annotation&) const = 0;
     virtual bool strict() const = 0;
+
+private:
+    std::string id_;
 };
 
-typedef std::unordered_map<std::string, std::unique_ptr<PlacementRule>> PlacementRules;
+typedef std::unordered_map<std::string, std::unique_ptr<PlacementRule>> PlacementRulesMap;
+
+struct BoundPlacementRule
+{
+    const PlacementRule* rule;
+    boost::optional<Annotation> annotation;
+};
+
+typedef std::vector<BoundPlacementRule> BoundPlacementRules;
 
 
 class YBelowRule: public PlacementRule
 {
 public:
-    YBelowRule(const YRelative& yRel)
-        : yRel_(yRel)
+    YBelowRule(const std::string& id, const YRelative& yRel)
+        : PlacementRule(id)
+        , yRel_(yRel)
     {}
 
-    virtual float apply(const Candidate& candidate, const AnnotationRule& annotation) const override
+    virtual float apply(const Candidate& candidate, const Annotation& annotation) const override
     {
         const float yLimit = getAbsoluteY(yRel_, candidate.yLayers);
         const float delta = (candidate.y + annotation.yMax) - yLimit;
@@ -104,12 +133,13 @@ const float YBelowRule::TOLERANCE = 30.0f;
 class YRangeOverlapRule: public PlacementRule
 {
 public:
-    YRangeOverlapRule(const YRelative& yMinRel, const YRelative& yMaxRel)
-        : yMinRel_(yMinRel)
+    YRangeOverlapRule(const std::string& id, const YRelative& yMinRel, const YRelative& yMaxRel)
+        : PlacementRule(id)
+        , yMinRel_(yMinRel)
         , yMaxRel_(yMaxRel)
     {}
 
-    virtual float apply(const Candidate& candidate, const AnnotationRule& annotation) const override
+    virtual float apply(const Candidate& candidate, const Annotation& annotation) const override
     {
         const float y1 = getAbsoluteY(yMinRel_, candidate.yLayers);
         const float y2 = getAbsoluteY(yMaxRel_, candidate.yLayers);
@@ -156,7 +186,43 @@ T getAttrValue(const XmlNode* elem, const std::string& name)
 }
 
 
-PlacementRules parsePlacementRules(const std::string& filename)
+PlacementRulesMap loadRuleSet(const XmlNode* groupNode)
+{
+    PlacementRulesMap result;
+
+    auto node = getFirstNode(groupNode, "rule");
+    while (node) {
+        const auto id = getAttrValue<std::string>(node, "id");
+        const auto type = getAttrValue<std::string>(node, "type");
+        std::unique_ptr<PlacementRule> rule;
+        if (type == "below") {
+            rule.reset(new YBelowRule(id, {
+                getAttrValue<std::string>(node, "y_layer"),
+                getAttrValue<float>(node, "y_fraction")
+            }));
+        } else
+        if (type == "region_target") {
+            rule.reset(new YRangeOverlapRule(id, {
+                getAttrValue<std::string>(node, "y_min_layer"),
+                getAttrValue<float>(node, "y_min_fraction")
+            }, {
+                getAttrValue<std::string>(node, "y_max_layer"),
+                getAttrValue<float>(node, "y_max_fraction")
+            }));
+        } else {
+            std::cerr << "Unknown rule type: " << type << std::endl;
+        }
+        if (rule) {
+            result.emplace(id, std::move(rule));
+        }
+        node = node->next_sibling("rule");
+    }
+
+    return result;
+}
+
+
+std::unordered_map<std::string, PlacementRulesMap> loadRules(const std::string& filename)
 {
     rapidxml::file<> xmlFile(filename.c_str());
     rapidxml::xml_document<> doc;
@@ -164,45 +230,112 @@ PlacementRules parsePlacementRules(const std::string& filename)
 
     const auto rootNode = getFirstNode(&doc, "placement_rules");
 
-    PlacementRules result;
+    std::unordered_map<std::string, PlacementRulesMap> result;
 
-    auto ruleSetNode = rootNode->first_node();
-    while (ruleSetNode) {
-        auto node = getFirstNode(ruleSetNode, "rule");
-        while (node) {
-            const auto type = getAttrValue<std::string>(node, "type");
-            std::unique_ptr<PlacementRule> rule;
-            if (type == "below") {
-                rule.reset(new YBelowRule({
-                    getAttrValue<std::string>(node, "y_layer"),
-                    getAttrValue<float>(node, "y_fraction")
-                }));
-            } else
-            if (type == "region_target") {
-                rule.reset(new YRangeOverlapRule({
-                    getAttrValue<std::string>(node, "y_min_layer"),
-                    getAttrValue<float>(node, "y_min_fraction")
-                }, {
-                    getAttrValue<std::string>(node, "y_max_layer"),
-                    getAttrValue<float>(node, "y_max_fraction")
-                }));
-            } else {
-                std::cerr << "Unknown rule type: " << type << std::endl;
-            }
-            if (rule) {
-                const auto id = getAttrValue<std::string>(node, "id");
-                result.emplace(id, std::move(rule));
-            }
-            node = node->next_sibling("rule");
+    auto node = getFirstNode(rootNode, "global_rule_set");
+    while (node) {
+        if (result.count("*")) {
+            throw std::runtime_error("Duplicate <global_rule_set>");
         }
-        ruleSetNode = ruleSetNode->next_sibling();
+        result["*"] = loadRuleSet(node);
+        node = node->next_sibling("global_rule_set");
+    }
+
+    node = getFirstNode(rootNode, "mtype_rule_set");
+    while (node) {
+        const auto mtype = getAttrValue<std::string>(node, "mtype");
+        if (result.count(mtype)) {
+            throw std::runtime_error("Duplicate <mtype_rule_set>");
+        }
+        result[mtype] = loadRuleSet(node);
+        node = node->next_sibling("mtype_rule_set");
     }
 
     return result;
 }
 
 
-AnnotationRules parseAnnotation(const std::string& filename, const PlacementRules& rules)
+
+
+class PlacementRulesContext
+{
+public:
+    PlacementRulesContext(const std::string& filePath);
+
+    BoundPlacementRules bind(const Annotations& annotations, const std::string& mtype) const;
+
+private:
+    const PlacementRulesMap& getRuleSet(const std::string& mtype) const;
+
+    const std::unordered_map<std::string, PlacementRulesMap> rules_;
+
+    static const PlacementRulesMap EMPTY_RULES;
+};
+
+const PlacementRulesMap PlacementRulesContext::EMPTY_RULES;
+
+
+PlacementRulesContext::PlacementRulesContext(const std::string& filePath):
+    rules_(loadRules(filePath))
+{
+}
+
+
+const PlacementRulesMap& PlacementRulesContext::getRuleSet(const std::string& mtype) const
+{
+    const auto it = rules_.find(mtype);
+    return (it == rules_.end()) ? EMPTY_RULES : it->second;
+}
+
+
+BoundPlacementRules PlacementRulesContext::bind(const Annotations& annotations, const std::string& mtype) const
+{
+    const auto& commonRules = getRuleSet("*");
+    const auto& mtypeRules = getRuleSet(mtype);
+
+    BoundPlacementRules result;
+
+    std::unordered_set<std::string> usedRules;
+    for (const auto& annotation: annotations) {
+        PlacementRule* rule = nullptr;
+
+        const auto ruleId = annotation.ruleId;
+        if (mtypeRules.count(ruleId)) {
+            rule = mtypeRules.at(ruleId).get();
+        } else
+        if (commonRules.count(ruleId)) {
+            rule = commonRules.at(ruleId).get();
+        } else {
+            std::cerr << "Unknown rule: " << ruleId << std::endl;
+        }
+
+        if (rule) {
+            result.push_back({rule, annotation});
+            usedRules.insert(ruleId);
+        }
+    }
+
+    for (const auto& item: mtypeRules) {
+        PlacementRule* rule = item.second.get();
+        if (usedRules.find(rule->id()) == usedRules.end()) {
+            std::cerr << "Missing rule annotation: " << rule->id() << std::endl;
+            result.push_back({rule, boost::none});
+        }
+    }
+
+    for (const auto& item: commonRules) {
+        PlacementRule* rule = item.second.get();
+        if (usedRules.find(rule->id()) == usedRules.end()) {
+            std::cerr << "Missing rule annotation: " << rule->id() << std::endl;
+            result.push_back({rule, boost::none});
+        }
+    }
+
+    return result;
+}
+
+
+Annotations loadAnnotations(const std::string& filename)
 {
     rapidxml::file<> xmlFile(filename.c_str());
     rapidxml::xml_document<> doc;
@@ -210,19 +343,17 @@ AnnotationRules parseAnnotation(const std::string& filename, const PlacementRule
 
     const auto rootNode = getFirstNode(&doc, "annotations");
 
-    AnnotationRules result;
+    Annotations result;
 
     auto node = getFirstNode(rootNode, "placement");
     while (node) {
         const auto rule = getAttrValue<std::string>(node, "rule");
-        if (rules.count(rule)) {
+        if (!IGNORED_RULES.count(rule)) {
             result.push_back({
                 rule,
                 getAttrValue<float>(node, "y_min"),
                 getAttrValue<float>(node, "y_max")
             });
-        } else {
-            //std::cerr << "Unknown rule: " << rule << std::endl;
         }
         node = node->next_sibling("placement");
     }
@@ -262,7 +393,7 @@ LayerProfile parseLayerRatio(const std::string& value, const std::vector<std::st
 float aggregateOptionalScores(const std::vector<float>& scores)
 {
     if (scores.empty()) {
-        return BASE_OPTIONAL_SCORE;
+        return 1.0;
     }
     return std::accumulate(scores.begin(), scores.end(), 0.0) / scores.size();
 }
@@ -277,19 +408,19 @@ float aggregateStrictScores(const std::vector<float>& scores)
 }
 
 
-float scoreCandidate(const Candidate& candidate, const AnnotationRules& annotations, const PlacementRules& rules)
+float scoreCandidate(const Candidate& candidate, const BoundPlacementRules& morphRules)
 {
     std::vector<float> strictScores;
     std::vector<float> optionalScores;
-    for (const auto& item: annotations) {
-        const auto rule = rules.find(item.rule);
-        if (rule == rules.end()) {
-            std::cerr << "Unknown rule: " << item.rule << std::endl;
-            continue;
+
+    for (const auto& morphRule: morphRules) {
+        const PlacementRule& rule = *(morphRule.rule);
+        float score = MISSING_RULE_SCORE;
+        if (morphRule.annotation) {
+            score = rule.apply(candidate, *morphRule.annotation);
         }
-        const float score = rule->second->apply(candidate, item);
         //std::cerr << candidate.id << ": score=" << score << " (" << item.rule << ")" << std::endl;
-        if (rule->second->strict()) {
+        if (rule.strict()) {
             strictScores.push_back(score);
         } else {
             optionalScores.push_back(score);
@@ -330,7 +461,7 @@ public:
 
     virtual bool fetchNext() override
     {
-        stream_ >> candidate_.morph >> candidate_.id >> candidate_.y;
+        stream_ >> candidate_.morph >> candidate_.mtype >> candidate_.id >> candidate_.y;
         for (const auto& layer: layerNames_) {
             auto& ys = candidate_.yLayers[layer];
             stream_ >> ys.first >> ys.second;
@@ -356,7 +487,7 @@ public:
     virtual bool fetchNext() override
     {
         float height;
-        stream_ >> candidate_.morph >> candidate_.id >> candidate_.y >> height;
+        stream_ >> candidate_.morph >> candidate_.mtype >> candidate_.id >> candidate_.y >> height;
         candidate_.yLayers = layerRatio_;
         for (auto& item: candidate_.yLayers) {
             item.second.first *= height;
@@ -398,7 +529,7 @@ int main(int argc, char* argv[])
         std::cerr << "Please specify --rules" << "\n";
         return 2;
     }
-    const auto rules = parsePlacementRules(vm["rules"].as<std::string>());
+    const PlacementRulesContext rules(vm["rules"].as<std::string>());
 
     if (vm.count("annotations") < 1) {
         std::cerr << "Please specify --annotations" << "\n";
@@ -422,7 +553,9 @@ int main(int argc, char* argv[])
     }
 
     std::string currentMorph;
-    boost::optional<AnnotationRules> annotations;
+    std::string currentMtype;
+    boost::optional<Annotations> annotations;
+    BoundPlacementRules morphRules;
 
     std::cout << std::fixed << std::setprecision(3);
     while (candidateReader->fetchNext()) {
@@ -430,15 +563,20 @@ int main(int argc, char* argv[])
         if (candidate.morph != currentMorph) {
             const auto annotationPath = annotationDir + "/" + candidate.morph + ".xml";
             if (boost::filesystem::exists(annotationPath)) {
-                annotations = parseAnnotation(annotationPath, rules);
+                annotations = loadAnnotations(annotationPath);
             } else {
                 std::cerr << "No annotation found for " << candidate.morph << ", skipping its candidates" << std::endl;
                 annotations = boost::none;
             }
             currentMorph = candidate.morph;
+            currentMtype = "";
         }
         if (annotations) {
-            const auto score = scoreCandidate(candidate, *annotations, rules);
+            if (candidate.mtype != currentMtype) {
+                morphRules = rules.bind(*annotations, candidate.mtype);
+                currentMtype = candidate.mtype;
+            }
+            const auto score = scoreCandidate(candidate, morphRules);
             std::cout << candidate.morph << " " << candidate.id << " " << score << std::endl;
         }
     }

@@ -176,7 +176,7 @@ def load_rules(filepath):
     return common_rules, mtype_rules
 
 
-def load_annotation(annotation_dir, morphology):
+def load_annotations(annotation_dir, morphology):
     """ Parse XML with morphology annotations. """
     filepath = os.path.join(annotation_dir, morphology + ".xml")
     etree = lxml.etree.parse(filepath)
@@ -187,13 +187,13 @@ class PlacementRules(object):
     def __init__(self, filepath):
         self.common_rules, self.mtype_rules = load_rules(filepath)
 
-    def bind(self, annotation, mtype):
-        """ Bind annotation to placement rules. """
+    def bind(self, annotations, mtype):
+        """ Bind annotations to placement rules. """
         common_rules = copy.copy(self.common_rules)
         mtype_rules = copy.copy(self.mtype_rules.get(mtype, {}))
 
         result = []
-        for item in annotation:
+        for item in annotations:
             params = copy.copy(item)
             rule_id = params.pop('rule')
             if rule_id in mtype_rules:
@@ -208,7 +208,7 @@ class PlacementRules(object):
             result.append((rule, params))
 
         for rule_id, rule in common_rules.iteritems():
-            L.warning("Missing 'rule' annotation: '%s'", rule_id)
+            L.warning("Missing rule annotation: '%s'", rule_id)
             result.append((rule, None))
 
         for rule_id, rule in mtype_rules.iteritems():
@@ -265,7 +265,7 @@ if __name__ == '__main__':
 
     layers = args.layers.split(",")
 
-    base_columns = ['mtype', 'morph', 'id', 'y']
+    base_columns = ['morph', 'mtype', 'id', 'y']
     if args.profile:
         profile = np.array(args.profile.split(","), dtype=float)
         profile/= np.sum(profile)
@@ -283,11 +283,11 @@ if __name__ == '__main__':
 
     for _, candidate in candidates.iterrows():
         try:
-            annotation = load_annotation(args.annotations, candidate.morph)
+            annotations = load_annotations(args.annotations, candidate.morph)
         except IOError:
             L.warning("No annotation found for '%s', skipping", candidate.morph)
             continue
-        morph_rules = rules.bind(annotation, candidate.mtype)
+        morph_rules = rules.bind(annotations, candidate.mtype)
         score = score_candidate(candidate, morph_rules, p=args.p_order)
         print candidate.morph, candidate.id, "%.3f" % score
 

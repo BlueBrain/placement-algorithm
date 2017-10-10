@@ -12,7 +12,7 @@ SCORE_CMD = "scorePlacement --annotations {annotations} --rules {rules} --layers
 
 def parse_morphdb(elem):
     morph, layer, mtype, etype, _ = elem.split(None, 4)
-    return (morph, (layer, mtype, etype))
+    return ((morph, mtype), (layer, mtype, etype))
 
 
 def parse_positions(elem):
@@ -26,13 +26,13 @@ def parse_index(elem):
 
 
 def morph_candidates(elem, positions):
-    morph, key = elem
-    return [(morph, p) for p in positions.get(key, [])]
+    (morph, mtype), key = elem
+    return [((morph, mtype), p) for p in positions.get(key, [])]
 
 
 def format_candidate(elem):
-    morph, (id_, y, layer_profile) = elem
-    return " ".join([morph, id_, y, layer_profile])
+    (morph, mtype), (id_, y, layer_profile) = elem
+    return " ".join([morph, mtype, id_, y, layer_profile])
 
 
 def parse_score(elem):
