@@ -58,14 +58,3 @@ def test_pick_morph_4():
         (22, ("morph-A", 0.1)),
     ]
     nt.assert_equal(actual, expected)
-
-def test_pick_morph_5():
-    index = {"42": range(1, 1001)}
-    morph_score = [
-        ("morph-%d" % k, k) for k in range(101)
-    ]
-    result = test_module.pick_morph(("42", morph_score), index=index)
-    for _, (morph, score) in result:
-        nt.assert_equal(morph, "morph-%d" % score)  # make sure morph score is not messed up
-        nt.assert_greater_equal(score, 90)  # make sure we use top 10%
-        print morph, score

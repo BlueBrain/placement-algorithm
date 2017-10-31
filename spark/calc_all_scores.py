@@ -50,11 +50,6 @@ def pick_morph(elem, alpha=1.0, index=None, seed=None):
     morph, score = zip(*values)
     morph, score = np.array(morph), np.array(score)
 
-    # Choose morphologies with top 10% score
-    top10_num = 1 + len(score) // 10
-    top10_idx = np.argpartition(score, -top10_num)[-top10_num:]
-    morph, score = morph[top10_idx], score[top10_idx]
-
     score = score ** alpha
 
     score_sum = np.sum(score)
