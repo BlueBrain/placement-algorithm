@@ -60,11 +60,11 @@ def test_aggregate_optional_scores():
     )
     nt.assert_almost_equal(
         test_module.aggregate_optional_scores([0.0, 0.5, 1.0], p=10.0),
-        0.801927386
+        0.896045917
     )
     nt.assert_almost_equal(
         test_module.aggregate_optional_scores([0.0, 0.5, 1.0], p=-10.0),
-        0.114098987
+        0.0
     )
 
 
@@ -79,13 +79,13 @@ def test_aggregate_strict_scores():
     )
 
 
-def test_load_annotation():
+def test_load_annotations():
     expected = [
         {'rule': 'L1_HAC, axon, Layer_1', 'y_min': '-70.0', 'y_max': '46.0' },
         {'rule': 'L1_hard_limit', 'y_min': '-223.907318115', 'y_max': '33.7012710571' },
         {'rule': 'L1_axon_hard_limit', 'y_min': '-217.9246521', 'y_max': '38.8493537903' },
     ]
-    result = test_module.load_annotation(TEST_DATA_DIR, "C060106F")
+    result = test_module.load_annotations(TEST_DATA_DIR, "C060106F")
     nt.assert_equal(expected, result)
 
 

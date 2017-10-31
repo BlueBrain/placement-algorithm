@@ -2,7 +2,8 @@
 
 module purge
 module load spark/2.2.0
-module load nse/scorePlacement
+
+export PATH=../cpp:$PATH  # find `scorePlacement` binary
 
 spark-submit calc_all_scores.py \
 	-p ../tests/data/positions.tsv \

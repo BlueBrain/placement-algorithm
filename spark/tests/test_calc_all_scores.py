@@ -8,7 +8,7 @@ import calc_all_scores as test_module
 
 def test_parse_morphdb():
     actual = test_module.parse_morphdb("morph-A 2 mtype-A etype-A ...")
-    expected = (("mtype-A", "morph-A"), ("2", "mtype-A", "etype-A"))
+    expected = (("morph-A", "mtype-A"), ("2", "mtype-A", "etype-A"))
     nt.assert_equal(actual, expected)
 
 def test_parse_positions():
