@@ -11,10 +11,6 @@ import numpy as np
 import pandas as pd
 
 
-# Score to give to rules with missing annotations
-DEFAULT_STRICT_SCORE = 1.0
-DEFAULT_OPTIONAL_SCORE = 0.1
-
 # Known annotations to ignore
 IGNORED_RULES = {
     'ScaleBias'
@@ -125,9 +121,8 @@ def score_candidate(candidate, morph_rules, p=1.0):
 
     for rule, annotation in morph_rules:
         if annotation is None:
-            score = DEFAULT_STRICT_SCORE if rule.strict else DEFAULT_OPTIONAL_SCORE
-        else:
-            score = rule(candidate=candidate, annotation=annotation)
+            continue
+        score = rule(candidate=candidate, annotation=annotation)
         L.debug("%s: score=%.3f (%s)", log_tag, score, rule.id)
         if rule.strict:
             strict_scores.append(score)

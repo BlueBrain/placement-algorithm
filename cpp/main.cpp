@@ -25,11 +25,6 @@ typedef std::pair<std::string, float> YRelative;
 typedef std::unordered_map<std::string, std::pair<float, float>> LayerProfile;
 
 
-// TODO: pass as command-line parameter?
-const float DEFAULT_STRICT_SCORE = 1.0;
-const float DEFAULT_OPTIONAL_SCORE = 0.1;
-
-
 const std::unordered_set<std::string> IGNORED_RULES {
     "ScaleBias"
 };
@@ -435,7 +430,7 @@ float scoreCandidate(const Candidate& candidate, const BoundPlacementRules& morp
         if (morphRule.annotation) {
             score = rule.apply(candidate, *morphRule.annotation);
         } else {
-            score = rule.strict() ? DEFAULT_STRICT_SCORE : DEFAULT_OPTIONAL_SCORE;
+            continue;
         }
         //std::cerr << candidate.id << ": score=" << score << " (" << item.rule << ")" << std::endl;
         if (rule.strict()) {
