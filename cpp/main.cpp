@@ -162,10 +162,10 @@ private:
 };
 
 
-XmlNode* getFirstNode(const XmlNode* elem, const std::string& name)
+XmlNode* getFirstNode(const XmlNode* elem, const std::string& name, bool required=true)
 {
     const auto node = elem->first_node(name.c_str());
-    if (!node) {
+    if (required && !node) {
         throw std::runtime_error((boost::format("<%1%> element not found") % name).str());
     }
     return node;
@@ -342,7 +342,7 @@ Annotations loadAnnotations(const std::string& filename)
 
     Annotations result;
 
-    auto node = getFirstNode(rootNode, "placement");
+    auto node = getFirstNode(rootNode, "placement", false);
     while (node) {
         const auto rule = getAttrValue<std::string>(node, "rule");
         if (!IGNORED_RULES.count(rule)) {
