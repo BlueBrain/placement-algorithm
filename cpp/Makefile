@@ -1,12 +1,26 @@
-.PHONY: clean
+# -Wno-deprecated-declarations: Boost still uses auto_ptr somewhere
+CXXFLAGS = \
+	--std=c++11 \
+	-Wall \
+	-Wno-deprecated-declarations \
+	-Werror \
+	$(NIX_CFLAGS_COMPILE)
+
+LDFLAGS = \
+	-lboost_program_options \
+	-lboost_filesystem \
+	#TODO: $(NIX_LDFLAGS)
 
 all: scorePlacement
 
-scorePlacement: main.cpp
-	g++ --std=c++11 -lboost_program_options -lboost_filesystem $< -o $@
+scorePlacement: main.o
+	$(CXX) $(LDFLAGS) $< -o $@
 
 test: scorePlacement
-	cd tests && bash test.sh
+	cd tests && $(SHELL) test.sh
 
 clean:
-	rm -f scorePlacement
+	$(RM) *.o scorePlacement
+
+install: all
+	install -D -t $(PREFIX)/bin scorePlacement
