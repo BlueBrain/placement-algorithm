@@ -1,4 +1,7 @@
-.PHONY: all
+.PHONY: all test
+
+test:
+	nosetests tests
 
 clean:
 	$(RM) *.pyc

@@ -17,9 +17,10 @@ scorePlacement: main.o
 	$(CXX) $(LDFLAGS) $< -o $@
 
 test: scorePlacement
-	cd tests && $(SHELL) test.sh
+	$(MAKE) -C tests $@
 
 clean:
+	$(MAKE) -C tests $@
 	$(RM) *.o scorePlacement
 
 install: all
