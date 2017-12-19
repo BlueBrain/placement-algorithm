@@ -7,7 +7,7 @@ CXXFLAGS = \
 	-Werror \
 	$(NIX_CFLAGS_COMPILE)
 
-unittests: main.o
+unittests: main.o test_lib.o
 	$(CXX) $^ -o $@
 
 unit-test: unittests
