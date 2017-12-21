@@ -1,14 +1,13 @@
 .PHONY: test unit-test functional-test
 
-CXXFLAGS = \
+CXXFLAGS+= \
 	--std=c++11 \
 	-Wall \
 	-Wno-deprecated-declarations \
-	-Werror \
-	$(NIX_CFLAGS_COMPILE)
+	-Werror
 
 unittests: main.o test_lib.o
-	$(CXX) $^ -o $@
+	$(CXX) $(LDFLAGS) $^ -o $@
 
 unit-test: unittests
 	./unittests

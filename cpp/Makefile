@@ -1,20 +1,18 @@
 # -Wno-deprecated-declarations: Boost still uses auto_ptr somewhere
-CXXFLAGS = \
+CXXFLAGS+= \
 	--std=c++11 \
 	-Wall \
 	-Wno-deprecated-declarations \
-	-Werror \
-	$(NIX_CFLAGS_COMPILE)
+	-Werror
 
-LDFLAGS = \
-	-lboost_program_options \
+LDLIBS = \
 	-lboost_filesystem \
-	#TODO: $(NIX_LDFLAGS)
+	-lboost_program_options
 
 all: scorePlacement
 
 scorePlacement: main.o
-	$(CXX) $(LDFLAGS) $< -o $@
+	$(CXX) $(LDFLAGS) $(LDLIBS) $< -o $@
 
 test: scorePlacement
 	$(MAKE) -C tests $@
