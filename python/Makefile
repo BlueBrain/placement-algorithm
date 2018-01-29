@@ -8,4 +8,4 @@ clean:
 	$(RM) *.pyc
 
 install:
-	install -D -t $(PREFIX)/bin assign_morphologies.py assign-morphologies
+	install -D -t $(PREFIX)/bin assign-morphologies

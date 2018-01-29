@@ -1,7 +1,9 @@
 # Nix development environment
 #
-# nix-build -I "nixpkgs=https://goo.gl/wTvE5t"
-# nix-shell -I "nixpkgs=https://goo.gl/wTvE5t"
+# source <bbp-nixpkgs>/sourcethis.sh
+#
+# nix-build
+# nix-shell
 #
 with import <nixpkgs> {};
 {
