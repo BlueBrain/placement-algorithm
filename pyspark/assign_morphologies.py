@@ -13,6 +13,7 @@ from functools import partial
 
 import numpy as np
 
+from brainbuilder.utils import bbp
 from brainbuilder.nexus.voxelbrain import Atlas
 from voxcell import CellCollection
 
@@ -30,15 +31,17 @@ SCORE_CMD = (
 )
 
 
-def parse_morphdb(elem):
-    morph, layer, mtype, etype, _ = elem.split(None, 4)
-    return ((morph, mtype), (layer, mtype, etype))
+# Columns definining partitions
+KEY_COLUMNS = ['morphology', 'mtype']
+
+# Columns to join on between cell positions and MorphDB
+JOIN_COLUMNS = ['region', 'mtype', 'etype']
 
 
 def morph_candidates(elem, positions):
     """ Create (morphology, position) candidates to consider. """
-    (morph, mtype), key = elem
-    return [((morph, mtype), p) for p in positions.get(key, [])]
+    key, value = elem
+    return [(key, p) for p in positions.get(value, [])]
 
 
 def format_candidate(elem):
@@ -96,7 +99,7 @@ def get_positions(cells, atlas, resolution):
        and total thickness along 'h' the same axis
     2) coarsen these values, rounding them to `resolution`;
        the bigger the value of resolution is, the fewer positions we have to consider
-    3) group GIDs with similar ('layer', 'mtype', 'etype', 'y', 'h') together,
+    3) group GIDs with similar (JOIN_COLUMNS, 'y', 'h') together,
        to consider each unique position only once
 
     Args:
@@ -106,17 +109,14 @@ def get_positions(cells, atlas, resolution):
 
     Returns:
         (positions, gid_index) tuple, where:
-           `positions`: (layer, mtype, etype) -> [(group_id, y, h)]
+           `positions`: JOIN_COLUMNS -> [(group_id, y, h)]
            `gid_index`: group_id -> [index in CellCollection]
 
     """
     distance = atlas.load_data('distance')
     height = atlas.load_data('height')
 
-    KEY_COLUMNS = ['layer', 'mtype', 'etype']
-
-    df = cells.properties[KEY_COLUMNS].copy()
-    df['layer'] = df['layer'].astype(str)  # for joining with parsed MorphDB later
+    df = cells.properties[JOIN_COLUMNS].copy()
 
     df['y'] = _coarsen(distance.lookup(cells.positions), resolution)
     df['h'] = _coarsen(height.lookup(cells.positions), resolution)
@@ -124,18 +124,18 @@ def get_positions(cells, atlas, resolution):
     positions = defaultdict(list)
     gid_index = {}
 
-    grouped = df.groupby(KEY_COLUMNS +['y', 'h'])
+    grouped = df.groupby(JOIN_COLUMNS +['y', 'h'])
     for k, (key_pos, group) in enumerate(grouped):
         _id = "c%d" % k
-        key = key_pos[:len(KEY_COLUMNS)]
-        pos = key_pos[len(KEY_COLUMNS):]
+        key = key_pos[:len(JOIN_COLUMNS)]
+        pos = key_pos[len(JOIN_COLUMNS):]
         positions[key].append((_id, pos))
         gid_index[_id] = group.index.values
 
     return dict(positions), gid_index
 
 
-def assign_morphologies(positions, gid_index, args):
+def assign_morphologies(positions, gid_index, morphdb, args):
     """
     Assign morphologies to GIDs specified by (positions, gid_index).
 
@@ -156,7 +156,9 @@ def assign_morphologies(positions, gid_index, args):
 
     sc = SparkContext(appName=APP_NAME)
     try:
-        morphdb = sc.textFile(args.morphdb).map(parse_morphdb)
+        morphdb = sc.parallelize(
+            (tuple(row[KEY_COLUMNS]), tuple(row[JOIN_COLUMNS])) for _, row in morphdb.iterrows()
+        )
         positions = sc.broadcast(positions).value
         gid_index = sc.broadcast(gid_index).value
         scores = (morphdb
@@ -190,6 +192,8 @@ def main(args):
     logging.basicConfig(level=logging.WARNING)
     L.setLevel(logging.INFO)
 
+    morphdb = bbp.load_neurondb_v3(args.morphdb)
+
     cells = CellCollection.load(args.mvd3)
     atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
 
@@ -204,7 +208,7 @@ def main(args):
         _dump_obj(gid_index, 'gid_index', debug_dir)
 
     L.info("Calculate placement score for each morphology-position candidate...")
-    morph_score = assign_morphologies(positions, gid_index, args)
+    morph_score = assign_morphologies(positions, gid_index, morphdb, args)
     if args.debug:
         _dump_obj(morph_score, 'morph_score', debug_dir)
 

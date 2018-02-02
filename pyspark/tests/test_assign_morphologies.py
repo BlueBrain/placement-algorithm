@@ -6,11 +6,6 @@ from cStringIO import StringIO
 import assign_morphologies as test_module
 
 
-def test_parse_morphdb():
-    actual = test_module.parse_morphdb("morph-A 2 mtype-A etype-A ...")
-    expected = (("morph-A", "mtype-A"), ("2", "mtype-A", "etype-A"))
-    nt.assert_equal(actual, expected)
-
 def test_format_candidate():
     elem = (("mtype-A", "morph-A"), ("gid", [1.0, 11.0]))
     actual = test_module.format_candidate(elem)
