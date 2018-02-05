@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """
 Assigning 'morphology' property to MVD3 using 'placement hints' approach.
 """
