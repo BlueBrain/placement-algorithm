@@ -126,13 +126,16 @@ private:
 const float YBelowRule::TOLERANCE = 30.0f;
 
 
-class YRangeOverlapRule: public PlacementRule
+class YRegionTargetRule: public PlacementRule
 {
 public:
-    YRangeOverlapRule(const std::string& id, const YRelative& yMinRel, const YRelative& yMaxRel)
+    YRegionTargetRule(
+        const std::string& id, const YRelative& yMinRel, const YRelative& yMaxRel, bool fill=false
+    )
         : PlacementRule(id)
         , yMinRel_(yMinRel)
         , yMaxRel_(yMaxRel)
+        , fill_(fill)
     {}
 
     virtual float apply(const Candidate& candidate, const Annotation& annotation) const override
@@ -145,6 +148,9 @@ public:
         const float y2o = std::min(y2, y2c);
         if (y1o > y2o) {
             return 0.0;
+        } else
+        if (fill_) {
+            return (y2o - y1o) / std::max(y2 - y1, y2c - y1c);
         } else {
             return (y2o - y1o) / std::min(y2 - y1, y2c - y1c);
         }
@@ -158,6 +164,7 @@ public:
 private:
     const YRelative yMinRel_;
     const YRelative yMaxRel_;
+    const bool fill_;
 };
 
 
@@ -192,20 +199,30 @@ PlacementRulesMap loadRuleSet(const XmlNode* groupNode)
         const auto type = getAttrValue<std::string>(node, "type");
         std::unique_ptr<PlacementRule> rule;
         if (type == "below") {
-            rule.reset(new YBelowRule(id, {
-                getAttrValue<std::string>(node, "y_layer"),
-                getAttrValue<float>(node, "y_fraction")
-            }));
+            rule.reset(new YBelowRule(
+                id,
+                {
+                    getAttrValue<std::string>(node, "y_layer"),
+                    getAttrValue<float>(node, "y_fraction")
+                }
+            ));
         } else
-        if (type == "region_target") {
-            rule.reset(new YRangeOverlapRule(id, {
-                getAttrValue<std::string>(node, "y_min_layer"),
-                getAttrValue<float>(node, "y_min_fraction")
-            }, {
-                getAttrValue<std::string>(node, "y_max_layer"),
-                getAttrValue<float>(node, "y_max_fraction")
-            }));
-        } else {
+        if (type == "region_target" || type == "region_occupy") {
+            const bool fill = (type == "region_occupy");
+            rule.reset(new YRegionTargetRule(
+                id,
+                {
+                    getAttrValue<std::string>(node, "y_min_layer"),
+                    getAttrValue<float>(node, "y_min_fraction")
+                },
+                {
+                    getAttrValue<std::string>(node, "y_max_layer"),
+                    getAttrValue<float>(node, "y_max_fraction")
+                },
+                fill
+            ));
+        }
+        else {
             std::cerr << "Unknown rule type: " << type << std::endl;
         }
         if (rule) {

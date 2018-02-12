@@ -7,6 +7,7 @@
 
 <mtype_rule_set mtype="L1_HAC">
         <rule id="L1_HAC, axon, Layer_1"  type="region_target" segment_type="axon" y_min_layer="1" y_min_fraction="0.00" y_max_layer="1" y_max_fraction="1.00" />
+        <rule id="L1_HAC, axon, Layer_1, fill"  type="region_occupy" segment_type="axon" y_min_layer="1" y_min_fraction="0.00" y_max_layer="1" y_max_fraction="1.00" />
 </mtype_rule_set>
 
 </placement_rules>

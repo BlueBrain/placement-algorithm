@@ -47,9 +47,10 @@ TEST_CASE( "YBelowRule", "[rules]")
 }
 
 
-TEST_CASE( "YRangeOverlapRule", "[rules]")
+TEST_CASE( "YRegionTargetRule", "[rules]")
 {
-    const YRangeOverlapRule rule{"test", {"L1", 0.0}, {"L1", 0.5}};
+    const YRegionTargetRule rule{"test", {"L1", 0.0}, {"L1", 0.5}};
+    const YRegionTargetRule ruleFill{"test", {"L1", 0.0}, {"L1", 0.5}, true};
     const LayerProfile yLayers{
         {"L1", { 20, 30 }}
     };
@@ -66,16 +67,19 @@ TEST_CASE( "YRangeOverlapRule", "[rules]")
     {
         const Annotation annotation{"foo1", -4.0, -2.0};
         CHECK( rule.apply(candidate, annotation) == Approx(0.0) );
+        CHECK( ruleFill.apply(candidate, annotation) == Approx(0.0) );
     }
 
     {
         const Annotation annotation{"foo2", -2.0, 2.0};
         CHECK( rule.apply(candidate, annotation) == Approx(0.5) );
+        CHECK( ruleFill.apply(candidate, annotation) == Approx(0.4) );
     }
 
     {
-        const Annotation annotation{"foo3", 2.0, 4.0};
+        const Annotation annotation{"foo3", 2.0, 3.0};
         CHECK( rule.apply(candidate, annotation) == Approx(1.0) );
+        CHECK( ruleFill.apply(candidate, annotation) == Approx(0.2) );
     }
 }
 
@@ -115,8 +119,9 @@ TEST_CASE( "Parse rules XML", "[xml]" )
     }
     {
         const auto& ruleSet = rules.at("L1_HAC");
-        REQUIRE( ruleSet.size() == 1 );
-        CHECK( isPointerOfType<YRangeOverlapRule>(ruleSet.at("L1_HAC, axon, Layer_1").get()) );
+        REQUIRE( ruleSet.size() == 2 );
+        CHECK( isPointerOfType<YRegionTargetRule>(ruleSet.at("L1_HAC, axon, Layer_1").get()) );
+        CHECK( isPointerOfType<YRegionTargetRule>(ruleSet.at("L1_HAC, axon, Layer_1, fill").get()) );
     }
 }
 
