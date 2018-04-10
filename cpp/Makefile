@@ -7,6 +7,7 @@ CXXFLAGS+= \
 
 LDLIBS = \
 	-lboost_filesystem \
+	-lboost_system \
 	-lboost_program_options
 
 all: scorePlacement

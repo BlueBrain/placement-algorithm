@@ -110,7 +110,7 @@ bool isPointerOfType(const P* value)
 TEST_CASE( "Parse rules XML", "[xml]" )
 {
     const auto rules = loadRules("../../tests/data/rules.xml");
-    REQUIRE( rules.size() == 2 );
+    REQUIRE( rules.size() == 3 );
     {
         const auto& ruleSet = rules.at("*");
         REQUIRE( ruleSet.size() == 2 );
@@ -120,9 +120,21 @@ TEST_CASE( "Parse rules XML", "[xml]" )
     {
         const auto& ruleSet = rules.at("L1_HAC");
         REQUIRE( ruleSet.size() == 2 );
-        CHECK( isPointerOfType<YRegionTargetRule>(ruleSet.at("L1_HAC, axon, Layer_1").get()) );
-        CHECK( isPointerOfType<YRegionTargetRule>(ruleSet.at("L1_HAC, axon, Layer_1, fill").get()) );
+        CHECK( isPointerOfType<YRegionTargetRule>(ruleSet.at("axon, Layer_1").get()) );
+        CHECK( isPointerOfType<YRegionTargetRule>(ruleSet.at("axon, Layer_1, fill").get()) );
     }
+    {
+        const auto& ruleSet = rules.at("L1_SAC");
+        REQUIRE( ruleSet.size() == 2 );
+        CHECK( isPointerOfType<YRegionTargetRule>(ruleSet.at("axon, Layer_1").get()) );
+        CHECK( isPointerOfType<YRegionTargetRule>(ruleSet.at("axon, Layer_1, fill").get()) );
+    }
+}
+
+
+TEST_CASE( "Duplicate mtype rules", "[xml]" )
+{
+    REQUIRE_THROWS(loadRules("../../tests/data/rules_duplicate.xml"));
 }
 
 
@@ -131,7 +143,7 @@ TEST_CASE( "Parse annotation XML", "[xml]" )
     const auto annotations = loadAnnotations("../../tests/data/C060106F.xml");
     REQUIRE( annotations.size() == 3 );
     {
-        CHECK( annotations[0].ruleId == "L1_HAC, axon, Layer_1" );
+        CHECK( annotations[0].ruleId == "axon, Layer_1" );
         CHECK( annotations[0].yMin == Approx(-70.0) );
         CHECK( annotations[0].yMax == Approx(46.0) );
     }

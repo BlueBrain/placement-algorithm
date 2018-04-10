@@ -4,6 +4,7 @@
 #include "contrib/rapidxml.hpp"
 #include "contrib/rapidxml_utils.hpp"
 
+#include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/optional.hpp>
@@ -78,7 +79,7 @@ private:
     std::string id_;
 };
 
-typedef std::unordered_map<std::string, std::unique_ptr<PlacementRule>> PlacementRulesMap;
+typedef std::unordered_map<std::string, std::shared_ptr<PlacementRule>> PlacementRulesMap;
 
 struct BoundPlacementRule
 {
@@ -197,7 +198,7 @@ PlacementRulesMap loadRuleSet(const XmlNode* groupNode)
     while (node) {
         const auto id = getAttrValue<std::string>(node, "id");
         const auto type = getAttrValue<std::string>(node, "type");
-        std::unique_ptr<PlacementRule> rule;
+        std::shared_ptr<PlacementRule> rule;
         if (type == "below") {
             rule.reset(new YBelowRule(
                 id,
@@ -246,21 +247,25 @@ std::unordered_map<std::string, PlacementRulesMap> loadRules(const std::string& 
     std::unordered_map<std::string, PlacementRulesMap> result;
 
     auto node = getFirstNode(rootNode, "global_rule_set");
-    while (node) {
-        if (result.count("*")) {
+    if (node) {
+        result.emplace("*", loadRuleSet(node));
+        node = node->next_sibling("global_rule_set");
+        if (node) {
             throw std::runtime_error("Duplicate <global_rule_set>");
         }
-        result["*"] = loadRuleSet(node);
-        node = node->next_sibling("global_rule_set");
     }
 
     node = getFirstNode(rootNode, "mtype_rule_set");
     while (node) {
-        const auto mtype = getAttrValue<std::string>(node, "mtype");
-        if (result.count(mtype)) {
-            throw std::runtime_error("Duplicate <mtype_rule_set>");
+        const auto mtypeValue = getAttrValue<std::string>(node, "mtype");
+        std::vector<std::string> mtypes;
+        boost::split(mtypes, mtypeValue, boost::is_any_of("|"));
+        const auto ruleSet = loadRuleSet(node);
+        for (const auto& mtype: mtypes) {
+            if (!result.emplace(mtype, ruleSet).second) {
+                throw std::runtime_error("Duplicate <mtype_rule_set> for: " + mtype);
+            }
         }
-        result[mtype] = loadRuleSet(node);
         node = node->next_sibling("mtype_rule_set");
     }
 
