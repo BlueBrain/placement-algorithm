@@ -14,8 +14,8 @@ from functools import partial
 import numpy as np
 
 from brainbuilder.utils import bbp
-from brainbuilder.nexus.voxelbrain import Atlas
 from voxcell import CellCollection
+from voxcell.nexus.voxelbrain import Atlas
 
 
 APP_NAME = "assign-morphologies"
@@ -104,7 +104,7 @@ def get_positions(cells, atlas, resolution):
 
     Args:
         cells: voxcell.CellCollection
-        atlas: brainbuilder.nexus.voxelbrain.Atlas
+        atlas: voxcell.nexus.voxelbrain.Atlas
         resolution: thickness resolution (um)
 
     Returns:
