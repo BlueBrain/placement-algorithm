@@ -37,12 +37,48 @@ The set of rules applicable for each type is defined in :ref:`placement rules <r
 
 Each morphology is :ref:`annotated <ref-files-annotations>` accordingly to pre-calculate Y-intervals for each region of interest (apical tuft, for instance).
 
-Scores are first calculated for each separate rule and then combined to a total score. The method used for the calculation depends on the type of rule.
+Scores are first calculated for each separate rule and then combined to a total score.
+If annotation corresponding to the rule is missing in morphology annotations, this rule is ignored when calculating the scores.
 
-Interval overlap rules
-~~~~~~~~~~~~~~~~~~~~~~
+We distinguish two types of rules: *strict* ones and *optional* ones.
+We aggregate scores for those differently, penalizing low *strict* score heavier than low *optional* score (see below).
 
-These are rules of the type where an interval in the layer structure of the column (for example upper half of layer 5) has to be aligned with an (vertical) interval in the structure of the morphology (for example: the apical tuft).
+In the following descriptions we will denote :math:`Y`-interval for a given morphology :math:`M` at a given position :math:`p` according to morphogy annotation with :math:`(a^\uparrow, a^\downarrow)`; and :math:`Y`-interval prescribed by a placement rule with :math:`(r^\uparrow, r^\downarrow)`.
+
+Strict rules
+~~~~~~~~~~~~
+
+As of now we have a single *strict* rule type named ``below``.
+It prescribes that morphology should stay below certain Y-limit :math:`r^\uparrow`.
+Thus we also address these rules as *hard limit* rules.
+
+below
+^^^^^
+
+Despite the name "hard limit", we allow a small error margin: a base score of :math:`1.0` is reduced for each :math:`\mu` um exceeding the limit until reaching `0.0` for :math:`\mu=30` um.
+
+.. math::
+
+    L = \max\left(\min\left(\frac{r^\uparrow - a^\uparrow + 30}{30}, 1\right),0\right)
+
+In placement rules file these rules are encoded with ``<rule type=below>`` elements:
+
+.. code-block:: xml
+
+    <rule id="L1_hard_limit" type="below" segment_type="dendrite" y_layer="1" y_fraction="1.0"/>
+
+- ``y_layer``, ``y_fraction`` specify layer ID (string) and relative position in the layer (:math:`0.0` to :math:`1.0`) corresponding to the upper limit :math:`r^\uparrow`
+- ``segment_type`` attribute is not used at the moment
+
+Optional rules
+~~~~~~~~~~~~~~
+
+As of now we have two rules of these type: ``region_target`` and ``region_occupy``.
+
+These are rules of the type where an interval in the layer structure (for example upper half of layer 5) has to be aligned with an (vertical) interval in the structure of the morphology (for example: the apical tuft). Thus we also address these rules as *interval overlap* rules.
+
+region_target
+^^^^^^^^^^^^^
 
 Assuming :math:`(a^\uparrow, a^\downarrow)` is :math:`Y`-interval for a given morphology :math:`M` at a given position :math:`p` according to morphogy annotation; and :math:`(r^\uparrow, r^\downarrow)` is :math:`Y`-interval prescribed by a placement rule, we calculate the overlap between the two:
 
@@ -52,31 +88,59 @@ Assuming :math:`(a^\uparrow, a^\downarrow)` is :math:`Y`-interval for a given mo
 
 :math:`I` varies from :math:`0.0` (no overlap) to :math:`1.0` (max possible overlap, i.e. one of the intervals contains another).
 
-Hard limit rules
-~~~~~~~~~~~~~~~~
+In placement rules file these rules are encoded with ``<rule type=region_target>`` elements:
 
-These are rules where a part of the morphology (for example the top of it) must stay above or below a part of the layer structure. Instead of enforcing this hard limit we allow a small error margin: a base score of :math:`1.0` is reduced for each :math:`\mu` um exceeding the limit until reaching `0.0` for :math:`\mu=30` um.
+.. code-block:: xml
+
+    <rule id="dendrite, Layer_1"  type="region_target" segment_type="dendrite" y_min_layer="1" y_min_fraction="0.00" y_max_layer="1" y_max_fraction="1.00" />
+
+- ``y_min_layer``, ``y_min_fraction`` specify layer ID and relative position in the layer corresponding to the lower limit :math:`r^\downarrow`
+- ``y_max_layer``, ``y_max_fraction`` specify layer ID and relative position in the layer corresponding to the upper limit :math:`r^\uparrow`
+- ``segment_type`` attribute is not used at the moment
+
+
+region_occupy
+^^^^^^^^^^^^^
+
+This rule is similar to ``region_target`` but instead of checking if one interval is *within* the other, we are striving for *exact* match.
 
 .. math::
 
-    L = \max\left(\min\left(\frac{r^\uparrow - a^\uparrow + 30}{30}, 1\right),0\right)
+    I = \max{\left(\frac{\min\left(a^\uparrow, r^\uparrow\right) - \max\left(a^\downarrow, r^\downarrow\right)}{\max\left(a^\uparrow - a^\downarrow, r^\uparrow - r^\downarrow\right)}, 0\right)}
+
+I.e., we achieve optimal score :math:`1.0` if and only if two intervals coincide.
+
+In placement rules file these rules are encoded with ``<rule type=region_occupy>`` elements:
+
+.. code-block:: xml
+
+    <rule id="dendrite, Layer_1"  type="region_occupy" segment_type="dendrite" y_min_layer="1" y_min_fraction="0.00" y_max_layer="1" y_max_fraction="1.00" />
+
+Rule attributes are analogous to those used with ``region_target`` rule.
 
 Combining the scores
 ~~~~~~~~~~~~~~~~~~~~
 
-We aggregate interval overlap scores :math:`I_j` with a harmonic mean. That allows us to penalize low score for a particular rule heavier than a simple mean, but still "give it a chance" if other interval scores are high:
-
-.. math::
-
-    \hat{I} = \left(\frac{\sum\limits_{j} I_j^{-1}}{n}\right)^{-1}
-
-By contrast, hard limit scores :math:`L_k` are aggregated with :math:`\min` function; thus breaking even one of hard limits will set the aggregated score to :math:`0.0`, regardless of other hard limit scores:
+We aggregate strict scores :math:`L_k` with :math:`\min` function:
 
 .. math::
 
     \hat{L} = {\min\limits_{k} L_k}
 
-The final score :math:`\hat{S}` is a product of aggregated interval and hard limit scores:
+If there are no strict scores, :math:`\hat{L} = 1`.
+
+By contrast, we aggregate optional scores :math:`I_j` in a slightly more "relaxed" way, with a harmonic mean.
+That allows us to penalize low score for a particular rule heavier than a simple mean, but still "give it a chance" if other interval scores are high:
+
+.. math::
+
+    \hat{I} = \left(\frac{\sum\limits_{j} I_j^{-1}}{n}\right)^{-1}
+
+Please note that if some optional score is close to zero (<0.001); the aggregated optional score would be zero, same as with strict scores.
+
+If there are no optional scores, :math:`\hat{I} = 1`.
+
+The final score :math:`\hat{S}` is a product of aggregated strict and optional scores:
 
 .. math::
 
@@ -151,18 +215,16 @@ Placement rules
 
 XML file defining a set of rules.
 
-Root element ``<placement_rules>`` (no attributes) contains a collection of ``<rule>`` elements grouped into *rule sets*.
-
-Each ``<rule>`` has an ``id``, ``type`` attributes, as well as ``y_[min|max]_layer``, ``y_[min_max]_fraction``, specifying the corresponding Y-interval.
-
-There are two type of rule sets: `global`, which are applied to all the morphologies, and `mtype`-specific, applied solely to morphologies of the corresponding mtype.
+Root element ``<placement_rules>`` (no attributes) contains a collection of ``<rule>`` elements encoding rules described above.
+Each ``<rule>`` has required ``id``, ``type`` attributes, plus additional attributes depending on the rule type (please refer to the rules description above for the details).
+Rules are grouped into *rule sets*: `global`, which are applied to all the morphologies; and `mtype`-specific, applied solely to morphologies of the corresponding mtype.
 
 Global rules
 ~~~~~~~~~~~~
 
 Defined in ``<global_rule_set>`` element (no attributes), which can appear only once in XML file.
 
-It is expected that global rules are hard limit rules.
+Usually global rules are hard limit rules.
 
 Rule IDs should be unique.
 
@@ -173,7 +235,7 @@ Defined in ``<mtype_rule_set>`` elements, which can appear multiple times in XML
 Each element should have ``mtype`` attribute with the associated mtype (or `|`-separated list of mtypes).
 No mtype can appear in more than one ``<mtype_rule_set>``.
 
-It is expected that mtype rules are interval overlap rules.
+Usually mtype rules are interval overlap rules.
 
 Rule IDs should be unique within mtype rule set, and should not overlap with global rule IDs.
 
