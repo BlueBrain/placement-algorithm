@@ -14,16 +14,18 @@ Methodology
 Candidate pool
 --------------
 
-For each cell position in MVD3 we obtain its `distance` from the "bottom" layer, as well as total `height` along cell :math:`Y`-axis.
+For each cell in MVD3 we obtain its position :math:`y` along its "principal direction" :math:`Y` (for instance, for cortical regions it is the direction towards pia); as well as all layer boundaries along :math:`Y`.
+This gives us cell position `profile`.
+Please refer to :ref:`Atlas <ref-data-atlas>` section for the details where do these numbers come from.
 
-To reduce computation, we coarsen `distance` and `height`, specifying their `resolution`.
+To reduce computation, we coarsen these profiles, specifying their `resolution`.
 Note there is trade-off between performance and precision; 10 um resolution works fine in practice.
 
-The coarsened positions are then grouped by (`region`, `mtype`, `etype`, `distance`, `height`), and joined to the morphology database using (`region`, `mtype`, `etype`) as the join key.
+Cells are then grouped by (`region`, `mtype`, `etype`, `profile`), and joined to the morphology database using (`region`, `mtype`, `etype`) as the join key.
 
-Each (`morphology`, `position`) pair from the resulting `candidate pool` is then given a score using the algorithm described in the detail in the next section.
+Each (`morphology`, `profile`) pair from the resulting `candidate pool` is then given a score using the algorithm described in the detail in the next section.
 
-Once each (`morphology`, `position`) pair is scored, we group them *by position*. Using scores as probability weights, we pick a morphology for every cell from the corresponding position group (sampling with replacement). If no morphology gets a positive score at the given position, all the corresponding cell positions are dropped.
+Once each (`morphology`, `profile`) pair is scored, we group them *by profile*. Using scores as probability weights, we pick a morphology for every cell from the corresponding profile group (sampling with replacement). If no morphology gets a positive score at the given profile, all the corresponding cell positions are dropped.
 
 The choice of morphologies can be tuned with :math:`\alpha` parameter, which specifies the exponential factor for each score. I.e., instead of using score :math:`S` as probability weights, one can use :math:`S^\alpha`. Using :math:`\alpha > 1` thus gives more preference to high scorers.
 
@@ -33,9 +35,9 @@ Calculating a placement score
 
 For each location we assign the morphology a score that reflects to what degree the applicable placement rules are fulfilled, if the morphology was placed at that location. This score is a real number from :math:`[0.0, 1.0]`, with :math:`0.0` indicating that a placement is impossible and :math:`1.0` indicating that all restrictions are fully met.
 
-The set of rules applicable for each type is defined in :ref:`placement rules <ref-files-rules>` file.
+The set of rules applicable for each type is defined in :ref:`placement rules <ref-data-rules>` file.
 
-Each morphology is :ref:`annotated <ref-files-annotations>` accordingly to pre-calculate Y-intervals for each region of interest (apical tuft, for instance).
+Each morphology is :ref:`annotated <ref-data-annotations>` accordingly to pre-calculate Y-intervals for each region of interest (apical tuft, for instance).
 
 Scores are first calculated for each separate rule and then combined to a total score.
 If annotation corresponding to the rule is missing in morphology annotations, this rule is ignored when calculating the scores.
@@ -174,11 +176,9 @@ Parameters
     --morphdb      Path to MorphDB file [required]
     --atlas        Atlas URL [required]
     --atlas-cache  Atlas cache folder [optional, default: None]
-    --resolution   Y-resolution (um) [optional, default: 10um]
+    --resolution   position / layer boundaries resolution (um) [optional, default: 10um]
     --annotations  Path to annotations folder [required]
     --rules        Path to placement rules file [required]
-    --layers       Layer names ('bottom' to 'top', comma-separated) [required]
-    --layer-ratio  Layer thickness ratio (comma-separated) [required]
     --alpha        [optional, default: 1.0]
     --seed         Random number generator seed [optional, default: 0]
     --ntasks       Number of Spark tasks to use for scoring [optional, default: 100]
@@ -205,10 +205,33 @@ For instance,
 Under the hood ``assign-morphologies`` is a wrapper Bash script which launches ``spark-submit`` with a specific Python script.
 It's up to the user to ensure that ``spark-submit`` command is available in the environment, and is configured properly.
 
-Files
-=====
+Input Data
+==========
 
-.. _ref-files-rules:
+.. _ref-data-atlas:
+
+Atlas
+-----
+
+`assign-morphologies` relies on a set of volumetric datasets being provided by the atlas.
+
+[PH]y
+~~~~~
+
+Position along brain region principal axis (for cortical regions that is the direction towards pia).
+
+[PH]<layer>
+~~~~~~~~~~~
+
+For each `layer` used in the placement rules (see below), the corresponding volumetric dataset stores two numbers per voxel: lower and upper layer boundary along brain region principal axis.
+Effectively, this allows to bind atlas-agnostic placement rules to a particular atlas space.
+
+For instance, if we use `L1` to `L6` layer names in the placement rules, the atlas should have the following datasets ``[PH]y``, ``[PH]L1``, ``[PH]L2``, ``[PH]L3``, ``[PH]L4``, ``[PH]L5``, ``[PH]L6``.
+
+``[PH]`` prefix stands for "placement hints" which is a historical way to address the approach used in |name|.
+
+
+.. _ref-data-rules:
 
 Placement rules
 ---------------
@@ -259,7 +282,7 @@ Example
 
     </placement_rules>
 
-.. _ref-files-annotations:
+.. _ref-data-annotations:
 
 Annotations
 -----------

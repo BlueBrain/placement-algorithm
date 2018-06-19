@@ -48,3 +48,20 @@ def test_pick_morph_4():
         (22, ("morph-A", 0.1)),
     ]
     nt.assert_equal(actual, expected)
+
+
+def test_collect_layer_names():
+    rules = StringIO("""
+        <placement_rules>
+            <global_rule_set>
+                <rule y_layer="1" />
+                <rule y_layer="2" />
+            </global_rule_set>
+            <mtype_rule_set>
+                <rule y_min_layer="4" y_max_layer="5" />
+            </mtype_rule_set>
+        </placement_rules>
+    """)
+    actual = test_module.collect_layer_names(rules)
+    expected = set(['1', '2', '4', '5'])
+    nt.assert_equal(actual, expected)

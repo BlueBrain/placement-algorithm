@@ -6,6 +6,7 @@ import os
 import argparse
 import logging
 import tempfile
+import xml.etree.ElementTree as ET
 
 from collections import defaultdict
 from itertools import chain
@@ -27,7 +28,6 @@ SCORE_CMD = (
     "  --annotations {annotations}"
     "  --rules {rules}"
     "  --layers {layers}"
-    "  --profile {profile}"
 )
 
 
@@ -90,41 +90,51 @@ def _coarsen(values, resolution):
     return resolution * np.round(values / resolution).astype(np.int)
 
 
-def get_positions(cells, atlas, resolution):
+def get_positions(cells, atlas, layers, resolution):
     """
     Get cell positions for `scorePlacement` from CellCollection.
 
-    1) using 'distance' and 'height' volumentric data,
-       get cell position 'y' along brain region Y-axis
-       and total thickness along 'h' the same axis
+    1) using '[PH]y' and '[PH]<X>' volumetric data, where <X> are layer names,
+       get cell position 'y' and layer boundaries '<X>_[0|1]'
+       along brain region "principal axis";
     2) coarsen these values, rounding them to `resolution`;
        the bigger the value of resolution is, the fewer positions we have to consider
-    3) group GIDs with similar (JOIN_COLUMNS, 'y', 'h') together,
+    3) group GIDs with similar (JOIN_COLUMNS, 'y', '<X>_[0|1]') together,
        to consider each unique position only once
 
     Args:
         cells: voxcell.CellCollection
+        layers: list of layer names
         atlas: voxcell.nexus.voxelbrain.Atlas
         resolution: thickness resolution (um)
 
     Returns:
         (positions, gid_index) tuple, where:
-           `positions`: JOIN_COLUMNS -> [(group_id, y, h)]
+           `positions`: JOIN_COLUMNS -> [(group_id, y, <X>_0, <X>_1,...)]
            `gid_index`: group_id -> [index in CellCollection]
 
     """
-    distance = atlas.load_data('distance')
-    height = atlas.load_data('height')
-
     df = cells.properties[JOIN_COLUMNS].copy()
 
-    df['y'] = _coarsen(distance.lookup(cells.positions), resolution)
-    df['h'] = _coarsen(height.lookup(cells.positions), resolution)
+    # cell position along brain region "principal axis"
+    df['y'] = atlas.load_data('[PH]y').lookup(cells.positions)
+
+    # layer boundaries along brain region "principal axis"
+    # '0' correspond to "lower" boundary (fraction 0.0 in placement rules);
+    # '1' correspond to "upper" boundary (fraction 1.0 in placement rules)
+    for layer in layers:
+        y01 = atlas.load_data('[PH]%s' % layer).lookup(cells.positions)
+        df['%s_0' % layer] = y01[:, 0]
+        df['%s_1' % layer] = y01[:, 1]
+
+    pos_columns = sum([['%s_0' % x, '%s_1' % x] for x in layers], ['y'])
+    for c in pos_columns:
+        df[c] = _coarsen(df[c], resolution)
 
     positions = defaultdict(list)
     gid_index = {}
 
-    grouped = df.groupby(JOIN_COLUMNS +['y', 'h'])
+    grouped = df.groupby(JOIN_COLUMNS + pos_columns)
     for k, (key_pos, group) in enumerate(grouped):
         _id = "c%d" % k
         key = key_pos[:len(JOIN_COLUMNS)]
@@ -135,7 +145,7 @@ def get_positions(cells, atlas, resolution):
     return dict(positions), gid_index
 
 
-def assign_morphologies(positions, gid_index, morphdb, args):
+def assign_morphologies(positions, gid_index, layers, morphdb, args):
     """
     Assign morphologies to GIDs specified by (positions, gid_index).
 
@@ -150,8 +160,7 @@ def assign_morphologies(positions, gid_index, morphdb, args):
     score_cmd = SCORE_CMD.format(
         annotations=args.annotations,
         rules=args.rules,
-        layers=args.layers,
-        profile=args.layer_ratio
+        layers=",".join(layers)
     )
 
     sc = SparkContext(appName=APP_NAME)
@@ -188,6 +197,16 @@ def _dump_obj(obj, name, output_dir):
         cPickle.dump(obj, f)
 
 
+def collect_layer_names(rules_path):
+    result = set()
+    for elem in ET.parse(rules_path).iter('rule'):
+        for name in ('y_layer', 'y_min_layer', 'y_max_layer'):
+            attr = elem.attrib.get(name)
+            if attr is not None:
+                result.add(attr)
+    return result
+
+
 def main(args):
     logging.basicConfig(level=logging.WARNING)
     L.setLevel(logging.INFO)
@@ -197,18 +216,20 @@ def main(args):
     cells = CellCollection.load(args.mvd3)
     atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
 
+    layers = collect_layer_names(args.rules)
+
     if args.debug:
         debug_dir = tempfile.mkdtemp(dir=".", prefix=APP_NAME + ".")
         L.info("Dumping debug data to '%s'", debug_dir)
 
     L.info("Evaluate cell positions along Y-axis...")
-    positions, gid_index = get_positions(cells, atlas, args.resolution)
+    positions, gid_index = get_positions(cells, atlas, layers, args.resolution)
     if args.debug:
         _dump_obj(positions, 'positions', debug_dir)
         _dump_obj(gid_index, 'gid_index', debug_dir)
 
     L.info("Calculate placement score for each morphology-position candidate...")
-    morph_score = assign_morphologies(positions, gid_index, morphdb, args)
+    morph_score = assign_morphologies(positions, gid_index, layers, morphdb, args)
     if args.debug:
         _dump_obj(morph_score, 'morph_score', debug_dir)
 
@@ -258,12 +279,6 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--rules", help="Path to placement rules file", required=True,
-    )
-    parser.add_argument(
-        "--layers", help="Layer names ('bottom' to 'top', comma-separated)", required=True
-    )
-    parser.add_argument(
-        "--layer-ratio", help="Layer thickness ratio (comma-separated)", required=True
     )
     parser.add_argument(
         "--alpha",
