@@ -207,6 +207,16 @@ def collect_layer_names(rules_path):
     return result
 
 
+def _assign_orientations(cells, atlas):
+    from brainbuilder.cell_orientations import apply_random_rotation
+    from voxcell import OrientationField
+    orientation_field = atlas.load_data('orientation', cls=OrientationField)
+    cells.orientations = orientation_field.lookup(cells.positions)
+    cells.orientations = apply_random_rotation(
+        cells.orientations, axis='y', distr=('uniform', {'low': -np.pi, 'high': np.pi})
+    )
+
+
 def main(args):
     logging.basicConfig(level=logging.WARNING)
     L.setLevel(logging.INFO)
@@ -250,6 +260,13 @@ def main(args):
             not_assigned,
         )
         cells.remove_unassigned_cells()
+
+    # If cell orientations were not assigned yet, do it now
+    # Random rotation around Y-axis is applied
+    # TODO: move to a subsequent phase (?)
+    if cells.orientations is None:
+        L.info("Assigning cell orientations...")
+        _assign_orientations(cells, atlas)
 
     cells.save(args.output)
     L.info("Done!")
