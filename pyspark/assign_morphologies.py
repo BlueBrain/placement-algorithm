@@ -35,7 +35,7 @@ SCORE_CMD = (
 KEY_COLUMNS = ['morphology', 'mtype']
 
 # Columns to join on between cell positions and MorphDB
-JOIN_COLUMNS = ['region', 'mtype', 'etype']
+JOIN_COLUMNS = ['layer', 'mtype', 'etype']
 
 
 def morph_candidates(elem, positions):

@@ -21,7 +21,7 @@ Please refer to :ref:`Atlas <ref-data-atlas>` section for the details where do t
 To reduce computation, we coarsen these profiles, specifying their `resolution`.
 Note there is trade-off between performance and precision; 10 um resolution works fine in practice.
 
-Cells are then grouped by (`region`, `mtype`, `etype`, `profile`), and joined to the morphology database using (`region`, `mtype`, `etype`) as the join key.
+Cells are then grouped by (`layer`, `mtype`, `etype`, `profile`), and joined to the morphology database using (`layer`, `mtype`, `etype`) as the join key.
 
 Each (`morphology`, `profile`) pair from the resulting `candidate pool` is then given a score using the algorithm described in the detail in the next section.
 
