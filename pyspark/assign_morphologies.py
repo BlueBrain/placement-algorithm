@@ -266,6 +266,7 @@ def main(args):
     # TODO: move to a subsequent phase (?)
     if cells.orientations is None:
         L.info("Assigning cell orientations...")
+        np.random.seed(args.seed)
         _assign_orientations(cells, atlas)
 
     cells.save_mvd3(args.output)
