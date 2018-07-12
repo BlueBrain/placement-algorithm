@@ -223,7 +223,7 @@ def main(args):
 
     morphdb = bbp.load_neurondb_v3(args.morphdb)
 
-    cells = CellCollection.load(args.mvd3)
+    cells = CellCollection.load_mvd3(args.mvd3)
     atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
 
     layers = collect_layer_names(args.rules)
@@ -268,7 +268,7 @@ def main(args):
         L.info("Assigning cell orientations...")
         _assign_orientations(cells, atlas)
 
-    cells.save(args.output)
+    cells.save_mvd3(args.output)
     L.info("Done!")
 
 
