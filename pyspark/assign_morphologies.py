@@ -15,7 +15,8 @@ from functools import partial
 import numpy as np
 
 from brainbuilder.utils import bbp
-from voxcell import CellCollection
+from brainbuilder.cell_orientations import apply_random_rotation
+from voxcell import CellCollection, OrientationField
 from voxcell.nexus.voxelbrain import Atlas
 
 
@@ -197,9 +198,9 @@ def _dump_obj(obj, name, output_dir):
         cPickle.dump(obj, f)
 
 
-def collect_layer_names(rules_path):
+def collect_layer_names(rules):
     result = set()
-    for elem in ET.parse(rules_path).iter('rule'):
+    for elem in rules.iter('rule'):
         for name in ('y_layer', 'y_min_layer', 'y_max_layer'):
             attr = elem.attrib.get(name)
             if attr is not None:
@@ -207,17 +208,50 @@ def collect_layer_names(rules_path):
     return result
 
 
-def _assign_orientations(cells, atlas):
-    from brainbuilder.cell_orientations import apply_random_rotation
-    from voxcell import OrientationField
+def _parse_rotation_group(elem):
+    result = []
+    for child in elem.getchildren():
+        result.append((
+            child.attrib['axis'],
+            child.attrib['distr']
+        ))
+    return result
+
+
+def parse_rotations(rules):
+    global_conf = None
+    for elem in rules.iter('global_rotation'):
+        if global_conf is not None:
+            raise BrainBuilderError("Duplicate <global_rotation> element")
+        global_conf = _parse_rotation_group(elem)
+    mtype_conf = {}
+    for elem in rules.iter('mtype_rotation'):
+        conf = _parse_rotation_group(elem)
+        for mtype in elem.attrib['mtype'].split("|"):
+            if mtype in mtype_conf:
+                raise BrainBuilderError("Duplicate <mtype_rotation> element for '%s'" % mtype)
+            mtype_conf[mtype] = conf
+    return global_conf, mtype_conf
+
+
+def assign_orientations(cells, atlas, rules):
     orientation_field = atlas.load_data('orientation', cls=OrientationField)
     cells.orientations = orientation_field.lookup(cells.positions)
-    cells.orientations = apply_random_rotation(
-        cells.orientations, axis='y', distr=('uniform', {'low': -np.pi, 'high': np.pi})
-    )
+    global_conf, mtype_conf = parse_rotations(rules)
+    for mtype, group in cells.properties.groupby('mtype'):
+        conf = mtype_conf.get(mtype, global_conf)
+        if conf is None:
+            continue
+        idx = group.index.values
+        for axis, distr in conf:
+            cells.orientations[idx] = apply_random_rotation(
+                cells.orientations[idx], axis=axis, distr=distr
+            )
 
 
 def main(args):
+    np.random.seed(args.seed)
+
     logging.basicConfig(level=logging.WARNING)
     L.setLevel(logging.INFO)
 
@@ -225,8 +259,12 @@ def main(args):
 
     cells = CellCollection.load_mvd3(args.mvd3)
     atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
+    rules = ET.parse(args.rules)
 
-    layers = collect_layer_names(args.rules)
+    L.info("Assigning cell orientations...")
+    assign_orientations(cells, atlas, rules)
+
+    layers = collect_layer_names(rules)
 
     if args.debug:
         debug_dir = tempfile.mkdtemp(dir=".", prefix=APP_NAME + ".")
@@ -260,14 +298,6 @@ def main(args):
             not_assigned,
         )
         cells.remove_unassigned_cells()
-
-    # If cell orientations were not assigned yet, do it now
-    # Random rotation around Y-axis is applied
-    # TODO: move to a subsequent phase (?)
-    if cells.orientations is None:
-        L.info("Assigning cell orientations...")
-        np.random.seed(args.seed)
-        _assign_orientations(cells, atlas)
 
     cells.save_mvd3(args.output)
     L.info("Done!")

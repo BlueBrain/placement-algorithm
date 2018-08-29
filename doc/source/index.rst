@@ -45,7 +45,7 @@ If annotation corresponding to the rule is missing in morphology annotations, th
 We distinguish two types of rules: *strict* ones and *optional* ones.
 We aggregate scores for those differently, penalizing low *strict* score heavier than low *optional* score (see below).
 
-In the following descriptions we will denote :math:`Y`-interval for a given morphology :math:`M` at a given position :math:`p` according to morphogy annotation with :math:`(a^\uparrow, a^\downarrow)`; and :math:`Y`-interval prescribed by a placement rule with :math:`(r^\uparrow, r^\downarrow)`.
+In the following descriptions we will denote :math:`Y`-interval for a given morphology :math:`M` at a given position :math:`p` according to morphology annotation with :math:`(a^\uparrow, a^\downarrow)`; and :math:`Y`-interval prescribed by a placement rule with :math:`(r^\uparrow, r^\downarrow)`.
 
 Strict rules
 ~~~~~~~~~~~~
@@ -82,7 +82,7 @@ These are rules of the type where an interval in the layer structure (for exampl
 region_target
 ^^^^^^^^^^^^^
 
-Assuming :math:`(a^\uparrow, a^\downarrow)` is :math:`Y`-interval for a given morphology :math:`M` at a given position :math:`p` according to morphogy annotation; and :math:`(r^\uparrow, r^\downarrow)` is :math:`Y`-interval prescribed by a placement rule, we calculate the overlap between the two:
+Assuming :math:`(a^\uparrow, a^\downarrow)` is :math:`Y`-interval for a given morphology :math:`M` at a given position :math:`p` according to morphology annotation; and :math:`(r^\uparrow, r^\downarrow)` is :math:`Y`-interval prescribed by a placement rule, we calculate the overlap between the two:
 
 .. math::
 
@@ -164,6 +164,8 @@ The main executable provided in the module is ``assign-morphologies``, which is 
 
  - read `MVD3 <https://bbpteam.epfl.ch/documentation/Circuit%20Documentation-0.0.1/mvd3.html>`_ file with cell positions
  - fetch auxiliary volumetric datasets for an associated atlas
+ - for every cell, assign orientation according to 'orientation' atlas dataset
+ - if specified by placement rules, apply additional random rotation
  - score each position-morphology combination
  - pick morphologies for every position based on score
  - output the result as a new MVD3
@@ -242,6 +244,8 @@ Root element ``<placement_rules>`` (no attributes) contains a collection of ``<r
 Each ``<rule>`` has required ``id``, ``type`` attributes, plus additional attributes depending on the rule type (please refer to the rules description above for the details).
 Rules are grouped into *rule sets*: `global`, which are applied to all the morphologies; and `mtype`-specific, applied solely to morphologies of the corresponding mtype.
 
+This XML file might also specify additional random rotation applied to all the cells or specific mtypes.
+
 Global rules
 ~~~~~~~~~~~~
 
@@ -262,6 +266,35 @@ Usually mtype rules are interval overlap rules.
 
 Rule IDs should be unique within mtype rule set, and should not overlap with global rule IDs.
 
+
+Global rotation
+~~~~~~~~~~~~~~~
+
+Defined in ``<global_rotation>`` element (no attributes), which can appear no more than once in XML file.
+It specifies rotation for *all* the cells, for which there are no mtype-specific rotation rules (see below).
+
+Contains one or several ``<rotation>`` element(s), each one specifying rotation axis and random distribution to draw angles from (in radians). Please refer to `this page <https://bbpteam.epfl.ch/project/spaces/display/BBPNSE/Defining+distributions+in+config+files>`_ for instructions how to specify distribution.
+
+.. code-block:: xml
+
+    <!-- uniform random rotation around Y-axis -->
+    <rotation axis="y" distr='["uniform", {"low": -3.14159, "high": 3.14159}]' />
+
+Rotations are applied sequentially as they appear in XML file.
+
+
+Mtype rotations
+~~~~~~~~~~~~~~~
+
+Defined in ``<mtype_rotation>`` elements, which can appear multiple times in XML file.
+Each element should have ``mtype`` attribute with the associated mtype (or `|`-separated list of mtypes).
+No mtype can appear in more than one ``<mtype_rotation>``.
+
+The content of each element is analogous to ``<global_rotation>``.
+
+Mtype-specific rotations *override* global ones (not combined with those).
+
+
 Example
 ~~~~~~~
 
@@ -278,6 +311,15 @@ Example
         <rule id="dendrite, Layer_1"  type="region_target" segment_type="dendrite" y_min_layer="1" y_min_fraction="0.00" y_max_layer="1" y_max_fraction="1.00" />
         <rule id="axon, Layer_1" type="region_target" segment_type="axon" y_min_layer="1" y_min_fraction="0.00" y_max_layer="1" y_max_fraction="1.00" />
       </mtype_rule_set>
+
+      <global_rotation>
+        <!-- uniform random rotation around Y-axis -->
+        <rotation axis="y" distr='["uniform", {"a": -3.14159, "b": 3.14159}]' />
+      </global_rotation>
+
+      <mtype_rotation mtype="L1_SAC">
+        <!-- suppress random rotation -->
+      </mtype_rotation>
 
 
     </placement_rules>

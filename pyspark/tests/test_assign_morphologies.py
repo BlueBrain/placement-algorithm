@@ -1,7 +1,10 @@
 import nose.tools as nt
+import numpy as np
 import numpy.testing as npt
+from mock import Mock
 
-from cStringIO import StringIO
+import pandas as pd
+import xml.etree.ElementTree as ET
 
 import assign_morphologies as test_module
 
@@ -51,7 +54,7 @@ def test_pick_morph_4():
 
 
 def test_collect_layer_names():
-    rules = StringIO("""
+    rules = ET.fromstring("""
         <placement_rules>
             <global_rule_set>
                 <rule y_layer="1" />
@@ -65,3 +68,48 @@ def test_collect_layer_names():
     actual = test_module.collect_layer_names(rules)
     expected = set(['1', '2', '4', '5'])
     nt.assert_equal(actual, expected)
+
+
+def test_parse_rotations():
+    rules = ET.fromstring("""
+        <placement_rules>
+            <global_rotation>
+                <rotation axis="y" distr="foo" />
+            </global_rotation>
+            <mtype_rotation mtype="mtype-A">
+                <rotation axis="x" distr="bar" />
+                <rotation axis="z" distr="baz" />
+            </mtype_rotation>
+        </placement_rules>
+    """)
+    global_conf, mtype_conf = test_module.parse_rotations(rules)
+    nt.assert_equal(global_conf, [('y', 'foo')])
+    nt.assert_equal(mtype_conf, {'mtype-A': [('x', 'bar'), ('z', 'baz')]})
+
+
+def test_assign_orientations():
+    cells = Mock()
+    cells.properties = pd.DataFrame({
+        'mtype': ["mtype-A", "mtype-B", "mtype-A"]
+    })
+    orientation_field = Mock()
+    atlas = Mock()
+    atlas.load_data.return_value = orientation_field
+    rules = ET.fromstring("""
+        <placement_rules>
+            <global_rotation>
+                <!-- rotate around Y-axis by PI -->
+                <rotation axis="y" distr='["uniform", {"a": 3.14159265, "b": 3.14159265}]' />
+            </global_rotation>
+            <mtype_rotation mtype="mtype-A">
+                <!-- suppress random rotation -->
+            </mtype_rotation>
+        </placement_rules>
+    """)
+    A = np.identity(3)
+    orientation_field.lookup.return_value = np.array([A, A, A])
+    test_module.assign_orientations(cells, atlas, rules)
+    nt.assert_equal(cells.orientations.shape[0], 3)
+    npt.assert_almost_equal(cells.orientations[0], A)
+    npt.assert_almost_equal(cells.orientations[1], [[-1, 0, 0], [0, 1, 0], [0, 0, -1]])
+    npt.assert_almost_equal(cells.orientations[2], A)

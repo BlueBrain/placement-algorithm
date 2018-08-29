@@ -10,5 +10,13 @@
     <rule id="axon, Layer_1, fill"  type="region_occupy" segment_type="axon" y_min_layer="1" y_min_fraction="0.00" y_max_layer="1" y_max_fraction="1.00" />
   </mtype_rule_set>
 
+  <global_rotation>
+    <rotation axis="y" distr='["uniform", {"a": -3.14159, "b": 3.14159}]' />
+  </global_rotation>
+
+  <mtype_rotation mtype="L1_SAC">
+    <!-- suppress random rotation -->
+  </mtype_rotation>
+
 </placement_rules>
 
