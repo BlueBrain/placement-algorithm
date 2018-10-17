@@ -32,11 +32,8 @@ SCORE_CMD = (
 )
 
 
-# Columns definining partitions
+# MVD3 / MorphDB columns definining partitions
 KEY_COLUMNS = ['morphology', 'mtype']
-
-# Columns to join on between cell positions and MorphDB
-JOIN_COLUMNS = ['layer', 'mtype', 'etype']
 
 
 def morph_candidates(elem, positions):
@@ -91,7 +88,7 @@ def _coarsen(values, resolution):
     return resolution * np.round(values / resolution).astype(np.int)
 
 
-def get_positions(cells, atlas, layers, resolution):
+def get_positions(cells, atlas, layers, resolution, join_columns):
     """
     Get cell positions for `scorePlacement` from CellCollection.
 
@@ -100,7 +97,7 @@ def get_positions(cells, atlas, layers, resolution):
        along brain region "principal axis";
     2) coarsen these values, rounding them to `resolution`;
        the bigger the value of resolution is, the fewer positions we have to consider
-    3) group GIDs with similar (JOIN_COLUMNS, 'y', '<X>_[0|1]') together,
+    3) group GIDs with similar (join_columns, 'y', '<X>_[0|1]') together,
        to consider each unique position only once
 
     Args:
@@ -111,11 +108,11 @@ def get_positions(cells, atlas, layers, resolution):
 
     Returns:
         (positions, gid_index) tuple, where:
-           `positions`: JOIN_COLUMNS -> [(group_id, y, <X>_0, <X>_1,...)]
+           `positions`: join_columns -> [(group_id, y, <X>_0, <X>_1,...)]
            `gid_index`: group_id -> [index in CellCollection]
 
     """
-    df = cells.properties[JOIN_COLUMNS].copy()
+    df = cells.properties[join_columns].copy()
 
     # cell position along brain region "principal axis"
     df['y'] = atlas.load_data('[PH]y').lookup(cells.positions)
@@ -135,18 +132,18 @@ def get_positions(cells, atlas, layers, resolution):
     positions = defaultdict(list)
     gid_index = {}
 
-    grouped = df.groupby(JOIN_COLUMNS + pos_columns)
+    grouped = df.groupby(join_columns + pos_columns)
     for k, (key_pos, group) in enumerate(grouped):
         _id = "c%d" % k
-        key = key_pos[:len(JOIN_COLUMNS)]
-        pos = key_pos[len(JOIN_COLUMNS):]
+        key = key_pos[:len(join_columns)]
+        pos = key_pos[len(join_columns):]
         positions[key].append((_id, pos))
         gid_index[_id] = group.index.values
 
     return dict(positions), gid_index
 
 
-def assign_morphologies(positions, gid_index, layers, morphdb, args):
+def assign_morphologies(positions, gid_index, layers, morphdb, join_columns, args):
     """
     Assign morphologies to GIDs specified by (positions, gid_index).
 
@@ -167,7 +164,7 @@ def assign_morphologies(positions, gid_index, layers, morphdb, args):
     sc = SparkContext(appName=APP_NAME)
     try:
         morphdb = sc.parallelize(
-            (tuple(row[KEY_COLUMNS]), tuple(row[JOIN_COLUMNS])) for _, row in morphdb.iterrows()
+            (tuple(row[KEY_COLUMNS]), tuple(row[join_columns])) for _, row in morphdb.iterrows()
         )
         positions = sc.broadcast(positions).value
         gid_index = sc.broadcast(gid_index).value
@@ -255,7 +252,12 @@ def main(args):
     logging.basicConfig(level=logging.WARNING)
     L.setLevel(logging.INFO)
 
-    morphdb = bbp.load_neurondb_v3(args.morphdb)
+    if args.ignore_etype:
+        morphdb = bbp.load_neurondb(args.morphdb)
+        join_columns = ['layer', 'mtype']
+    else:
+        morphdb = bbp.load_neurondb(args.morphdb, with_emodels=True)
+        join_columns = ['layer', 'mtype', 'etype']
 
     cells = CellCollection.load_mvd3(args.mvd3)
     atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
@@ -271,13 +273,13 @@ def main(args):
         L.info("Dumping debug data to '%s'", debug_dir)
 
     L.info("Evaluate cell positions along Y-axis...")
-    positions, gid_index = get_positions(cells, atlas, layers, args.resolution)
+    positions, gid_index = get_positions(cells, atlas, layers, args.resolution, join_columns)
     if args.debug:
         _dump_obj(positions, 'positions', debug_dir)
         _dump_obj(gid_index, 'gid_index', debug_dir)
 
     L.info("Calculate placement score for each morphology-position candidate...")
-    morph_score = assign_morphologies(positions, gid_index, layers, morphdb, args)
+    morph_score = assign_morphologies(positions, gid_index, layers, morphdb, join_columns, args)
     if args.debug:
         _dump_obj(morph_score, 'morph_score', debug_dir)
 
@@ -327,6 +329,11 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--rules", help="Path to placement rules file", required=True,
+    )
+    parser.add_argument(
+        "--ignore-etype",
+        help="Take 'etype' into account on join",
+        action="store_true"
     )
     parser.add_argument(
         "--alpha",
