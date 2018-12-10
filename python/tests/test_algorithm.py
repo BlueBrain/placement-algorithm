@@ -235,8 +235,7 @@ def test_choose_morphology_1(score_mock, np_random_mock):
         'total': [0.1, 0.9]
     }, index=['morph-1', 'morph-2'])
     score_mock.configure_mock(**{'return_value': scores})
-    test_module.choose_morphology(mock.ANY, mock.ANY, mock.ANY, alpha=2.0, seed=42)
-    np.random.seed.assert_called_once_with(42)
+    test_module.choose_morphology(mock.ANY, mock.ANY, mock.ANY, alpha=2.0)
     np.random.choice.assert_called_once()
     npt.assert_equal(np.random.choice.call_args[0][0], ['morph-1', 'morph-2'])
     npt.assert_almost_equal(np.random.choice.call_args[1]['p'], [0.012195, 0.987805])

@@ -182,7 +182,7 @@ def score_morphologies(position, rules, params, segment_type=None):
     return result
 
 
-def choose_morphology(position, rules, params, alpha=1.0, segment_type=None, seed=None):
+def choose_morphology(position, rules, params, alpha=1.0, segment_type=None):
     """
     Choose morphology from a list of annotated morphologies.
 
@@ -192,7 +192,6 @@ def choose_morphology(position, rules, params, alpha=1.0, segment_type=None, see
         params: pandas DataFrame with morphology annotations
         alpha: exponential factor for scores
         segment_type: if specified, check only corresponding rules ('axon' or 'dendrite')
-        seed: pseudo-random seed generator (for reproducibility)
 
     Returns:
         Morphology picked at random with scores ** alpha as probability weights
@@ -204,6 +203,4 @@ def choose_morphology(position, rules, params, alpha=1.0, segment_type=None, see
     w_sum = np.sum(weights)
     if np.isclose(w_sum, 0.0):
         return None
-    if seed is not None:
-        np.random.seed(seed % (1 << 32))
     return np.random.choice(morphs, p=weights / w_sum)

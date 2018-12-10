@@ -24,12 +24,24 @@ setup(
         'numpy>=1.8',
         'pandas>0.19',
         'six>=1.0',
-        'tqdm>=4.0',
-        'ujson>=1.0',
     ],
+    extras_require={
+        'app': [
+            'morphio>=2.0',
+            'tqdm>=4.0',
+            'ujson>=1.0',
+            'voxcell>=2.5',
+        ],
+        'mpi': [
+            'mpi4py>=3.0',
+
+        ],
+    },
     packages=find_packages(),
     entry_points={
       'console_scripts': [
+          'choose-morphologies=placement_algorithm.app.choose_morphologies:main',
+          'compose-morphologies=placement_algorithm.app.compose_morphologies:main',
           'compact-annotations=placement_algorithm.app.compact_annotations:main',
           'score-morphologies=placement_algorithm.app.score_morphologies:main',
       ]
