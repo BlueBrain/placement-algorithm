@@ -15,17 +15,32 @@ def test_y_absolute():
     nt.assert_equal(actual, 25)
 
 
+def test_invalid_segment_type():
+    nt.assert_raises(
+        ValueError,
+        test_module.Rule, segment_type='soma', strict=True
+    )
+
+
 def test_y_below_rule_create():
-    elem = mock.Mock(attrib={'y_layer': 'L1', 'y_fraction': 0.5, 'tolerance': 50.0})
+    elem = mock.Mock(attrib={
+        'y_layer': 'L1',
+        'y_fraction': 0.5,
+        'tolerance': 50.0,
+        'segment_type': 'axon'
+    })
     rule = test_module.YBelowRule.from_xml(elem)
     nt.assert_equal(rule.y_rel, ('L1', 0.5))
     nt.assert_equal(rule.tolerance, 50.0)
     nt.assert_true(rule.strict)
+    nt.assert_equal(rule.segment_type, 'axon')
     nt.assert_equal(rule.ANNOTATION_PARAMS, ['y_max'])
 
 
 def test_y_below_rule():
-    rule = test_module.YBelowRule(y_rel=('L1', 0.5), tolerance=30.0)
+    rule = test_module.YBelowRule(
+        y_rel=('L1', 0.5), tolerance=30.0, segment_type='axon'
+    )
     position = {'y': 110.0, 'L1_0': 100, 'L1_1': 200}
     annotations = pd.DataFrame({
         'y_max': [71.0, 55.0, 39.0],
@@ -37,16 +52,25 @@ def test_y_below_rule():
 
 
 def test_y_range_overlap_rule_create():
-    elem = mock.Mock(attrib={'y_min_layer': 'L1', 'y_min_fraction': 0.0, 'y_max_layer': 'L1', 'y_max_fraction': 0.5})
+    elem = mock.Mock(attrib={
+        'y_min_layer': 'L1',
+        'y_min_fraction': 0.0,
+        'y_max_layer': 'L1',
+        'y_max_fraction': 0.5,
+        'segment_type': 'dendrite'
+    })
     rule = test_module.YRangeOverlapRule.from_xml(elem)
     nt.assert_equal(rule.y_rel_min, ('L1', 0.0))
     nt.assert_equal(rule.y_rel_max, ('L1', 0.5))
     nt.assert_false(rule.strict)
+    nt.assert_equal(rule.segment_type, 'dendrite')
     nt.assert_equal(rule.ANNOTATION_PARAMS, ['y_min', 'y_max'])
 
 
 def test_y_range_overlap_rule_1():
-    rule = test_module.YRangeOverlapRule(y_rel_min=('L1', 0.0),  y_rel_max=('L1', 0.5))
+    rule = test_module.YRangeOverlapRule(
+        y_rel_min=('L1', 0.0),  y_rel_max=('L1', 0.5), segment_type='axon'
+    )
     position = {'y': 20.0, 'L1_0': 20.0, 'L1_1': 30.0}
     annotations = pd.DataFrame({
         'y_min': [-4.0, -2.0, 2.0],
@@ -59,7 +83,9 @@ def test_y_range_overlap_rule_1():
 
 
 def test_y_range_overlap_rule_2():
-    rule = test_module.YRangeOverlapRule(y_rel_min=('L1', 0.0),  y_rel_max=('L1', 0.5))
+    rule = test_module.YRangeOverlapRule(
+        y_rel_min=('L1', 0.0),  y_rel_max=('L1', 0.5), segment_type='dendrite'
+    )
     position = {'y': 20.0, 'L1_0': 20.0, 'L1_1': 20.0}  # 'L1' is empty
     annotations = pd.DataFrame({
         'y_min': [-4.0, -2.0, 2.0],
@@ -114,23 +140,27 @@ def test_aggregate_optional_score_empty():
 
 
 
-def test_score_morphologies():
+def test_score_morphologies_1():
     position = {'y': 110.0, 'L1_0': 100, 'L1_1': 200}
     rules = {
         'rule-A': mock.Mock(
             strict=True,
+            segment_type='axon',
             return_value=pd.Series([0.2], index=['morph-1'])
         ),
         'rule-B': mock.Mock(
             strict=True,
+            segment_type='dendrite',
             return_value=pd.Series([0.3, 0.5], index=['morph-1', 'morph-2'])
         ),
         'rule-C': mock.Mock(
             strict=False,
+            segment_type='axon',
             return_value=pd.Series([0.4, 0.6], index=['morph-1', 'morph-2'])
         ),
         'rule-D': mock.Mock(
             strict=False,
+            segment_type='dendrite',
             return_value=pd.Series([0.7], index=['morph-2'])
         ),
     }
@@ -153,6 +183,49 @@ def test_score_morphologies():
     )
     pdt.assert_frame_equal(actual, expected, check_like=True)
 
+
+def test_score_morphologies_2():
+    position = {'y': 110.0, 'L1_0': 100, 'L1_1': 200}
+    rules = {
+        'rule-A': mock.Mock(
+            strict=True,
+            segment_type='axon',
+            return_value=pd.Series([0.2], index=['morph-1'])
+        ),
+        'rule-B': mock.Mock(
+            strict=True,
+            segment_type='dendrite',
+            return_value=pd.Series([0.3, 0.5], index=['morph-1', 'morph-2'])
+        ),
+        'rule-C': mock.Mock(
+            strict=False,
+            segment_type='axon',
+            return_value=pd.Series([0.4, 0.6], index=['morph-1', 'morph-2'])
+        ),
+        'rule-D': mock.Mock(
+            strict=False,
+            segment_type='dendrite',
+            return_value=pd.Series([0.7], index=['morph-2'])
+        ),
+    }
+    params = pd.DataFrame({
+        ('rule-A', 'y_max'): {'morph-1': 0, 'morph-2': np.nan},
+        ('rule-B', 'y_max'): {'morph-1': 0, 'morph-2': 0},
+        ('rule-C', 'y_min'): {'morph-1': 0, 'morph-2': 0},
+        ('rule-C', 'y_min'): {'morph-1': 0, 'morph-2': 0},
+        ('rule-D', 'y_max'): {'morph-1': np.nan, 'morph-2': 0},
+        ('rule-D', 'y_max'): {'morph-1': np.nan, 'morph-2': 0},
+    })
+    actual = test_module.score_morphologies(position, rules, params, segment_type='dendrite')
+    expected = pd.DataFrame(
+        [
+            [0.3, np.nan, 0.3, 1.0, 0.30],
+            [0.5,    0.7, 0.5, 0.7, 0.35],
+        ],
+        index=['morph-1', 'morph-2'],
+        columns=['rule-B', 'rule-D', 'strict', 'optional', 'total']
+    )
+    pdt.assert_frame_equal(actual, expected, check_like=True)
 
 
 @mock.patch('numpy.random')
@@ -177,13 +250,3 @@ def test_choose_morphology_2(score_mock):
     score_mock.configure_mock(**{'return_value': scores})
     actual = test_module.choose_morphology(mock.ANY, mock.ANY, mock.ANY, alpha=2.0)
     nt.assert_is_none(actual)
-
-
-@mock.patch('placement_algorithm.algorithm.score_morphologies')
-def test_choose_morphology_3(score_mock):
-    scores = pd.DataFrame({
-        'total': [0.0, 1e-12]
-    }, index=['morph-1', 'morph-2'])
-    score_mock.configure_mock(**{'return_value': scores})
-    _, actual = test_module.choose_morphology(mock.ANY, mock.ANY, mock.ANY, alpha=2.0, return_scores=True)
-    pdt.assert_frame_equal(actual, scores)

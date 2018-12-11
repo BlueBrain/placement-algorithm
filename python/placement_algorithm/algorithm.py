@@ -19,7 +19,16 @@ def y_absolute(y_rel, position):
     return (1.0 - fraction) * y0 + fraction * y1
 
 
-class YBelowRule(object):
+class Rule(object):
+    """ Base class for rule functors. """
+    def __init__(self, segment_type, strict):
+        if segment_type not in ('axon', 'dendrite'):
+            raise ValueError("Invalid segment type: '%s'" % segment_type)
+        self.segment_type = segment_type
+        self.strict = strict
+
+
+class YBelowRule(Rule):
     """
     Check that 'y' does not exceed given limit.
 
@@ -31,7 +40,8 @@ class YBelowRule(object):
 
     ANNOTATION_PARAMS = ['y_max']
 
-    def __init__(self, y_rel, tolerance):
+    def __init__(self, y_rel, tolerance, segment_type):
+        super(YBelowRule, self).__init__(segment_type, strict=True)
         self.y_rel = y_rel
         self.tolerance = tolerance
 
@@ -41,7 +51,8 @@ class YBelowRule(object):
         attr = elem.attrib
         return cls(
             y_rel=(attr['y_layer'], float(attr['y_fraction'])),
-            tolerance=float(attr.get('tolerance', 30.0))
+            tolerance=float(attr.get('tolerance', 30.0)),
+            segment_type=attr['segment_type']
         )
 
     def __call__(self, position, annotation):
@@ -51,13 +62,8 @@ class YBelowRule(object):
         result = np.clip(result, a_min=0.0, a_max=1.0)
         return pd.Series(result, index=annotation.index)
 
-    @property
-    def strict(self):
-        """ Whether it's strict or optional rule. """
-        return True
 
-
-class YRangeOverlapRule(object):
+class YRangeOverlapRule(Rule):
     """
     Check that '[y1; y2]' falls within given interval.
 
@@ -69,7 +75,8 @@ class YRangeOverlapRule(object):
 
     ANNOTATION_PARAMS = ['y_min', 'y_max']
 
-    def __init__(self, y_rel_min, y_rel_max):
+    def __init__(self, y_rel_min, y_rel_max, segment_type):
+        super(YRangeOverlapRule, self).__init__(segment_type, strict=False)
         self.y_rel_min = y_rel_min
         self.y_rel_max = y_rel_max
 
@@ -79,7 +86,8 @@ class YRangeOverlapRule(object):
         attr = elem.attrib
         return cls(
             y_rel_min=(attr['y_min_layer'], float(attr['y_min_fraction'])),
-            y_rel_max=(attr['y_max_layer'], float(attr['y_max_fraction']))
+            y_rel_max=(attr['y_max_layer'], float(attr['y_max_fraction'])),
+            segment_type=attr['segment_type']
         )
 
     def __call__(self, position, annotation):
@@ -97,11 +105,6 @@ class YRangeOverlapRule(object):
             0.0
         )
         return pd.Series(score, index=annotation.index)
-
-    @property
-    def strict(self):
-        """ Whether it's strict or optional rule. """
-        return False
 
 
 def aggregate_strict_score(scores):
@@ -144,7 +147,7 @@ def aggregate_optional_score(scores):
     return scores.apply(_hmean, axis=1).fillna(1.0)
 
 
-def score_morphologies(position, rules, params):
+def score_morphologies(position, rules, params, segment_type=None):
     """
     Calculate placement score for a batch of annotated morphologies.
 
@@ -152,6 +155,7 @@ def score_morphologies(position, rules, params):
         position: layer profile (a mapping with 'y' + '<layer>_[0|1]' values)
         rules: dict of placement rules functors
         params: pandas DataFrame with morphology annotations
+        segment_type: if specified, check only corresponding rules ('axon' or 'dendrite')
 
     Returns:
         pandas DataFrame with aggregated scores;
@@ -164,6 +168,8 @@ def score_morphologies(position, rules, params):
     result = pd.DataFrame(index=params.index)
     strict, optional = [], []
     for rule_id, rule in iteritems(rules):
+        if (segment_type is not None) and (rule.segment_type != segment_type):
+            continue
         annotation = params[rule_id].dropna()
         result[rule_id] = rule(position=position, annotation=annotation)
         if rule.strict:
@@ -176,7 +182,7 @@ def score_morphologies(position, rules, params):
     return result
 
 
-def choose_morphology(position, rules, params, alpha=1.0, seed=None, return_scores=False):
+def choose_morphology(position, rules, params, alpha=1.0, segment_type=None, seed=None):
     """
     Choose morphology from a list of annotated morphologies.
 
@@ -185,23 +191,19 @@ def choose_morphology(position, rules, params, alpha=1.0, seed=None, return_scor
         rules: dict of placement rules functors
         params: pandas DataFrame with morphology annotations
         alpha: exponential factor for scores
+        segment_type: if specified, check only corresponding rules ('axon' or 'dendrite')
         seed: pseudo-random seed generator (for reproducibility)
 
     Returns:
-        Morphology picked on random with scores ** alpha as probability weights
+        Morphology picked at random with scores ** alpha as probability weights
         (`None` if all the morphologies score 0).
     """
-    scores = score_morphologies(position, rules, params)
+    scores = score_morphologies(position, rules, params, segment_type=segment_type)
     morphs = scores.index.values
     weights = scores['total'].values ** alpha
     w_sum = np.sum(weights)
     if np.isclose(w_sum, 0.0):
-        result = None
-    else:
-        if seed is not None:
-            np.random.seed(seed % (1 << 32))
-        result = np.random.choice(morphs, p=weights / w_sum)
-    if return_scores:
-        return result, scores
-    else:
-        return result
+        return None
+    if seed is not None:
+        np.random.seed(seed % (1 << 32))
+    return np.random.choice(morphs, p=weights / w_sum)

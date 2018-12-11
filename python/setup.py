@@ -31,7 +31,7 @@ setup(
     entry_points={
       'console_scripts': [
           'compact-annotations=placement_algorithm.app.compact_annotations:main',
-          'choose-morphology=placement_algorithm.app.choose_morphology:main',
+          'score-morphologies=placement_algorithm.app.score_morphologies:main',
       ]
     },
     classifiers=[

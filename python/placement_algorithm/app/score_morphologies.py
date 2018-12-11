@@ -14,7 +14,7 @@ import ujson
 from placement_algorithm import algorithm, files
 
 
-L = logging.getLogger('choose-morphology')
+L = logging.getLogger('score-morphologies')
 
 
 def _list_morphologies(morphdb, mtype, etype=None):
@@ -27,7 +27,6 @@ def _list_morphologies(morphdb, mtype, etype=None):
 
 def main():
     """ Application entry point. """
-    # pylint: disable=too-many-locals
 
     logging.basicConfig(level=logging.WARN)
     L.setLevel(logging.INFO)
@@ -45,16 +44,9 @@ def main():
         "--rules", help="Path to placement rules file", required=True,
     )
     parser.add_argument(
-        "--alpha",
-        help="Use `score ** alpha` as morphology choice probability (default: %(default)s)",
-        type=float,
-        default=1.0
-    )
-    parser.add_argument(
-        "--seed",
-        help="Random number generator seed (default: %(default)s)",
-        type=int,
-        default=0
+        "--segment-type", help="Segment type to consider (if not specified, consider both)",
+        choices=['axon', 'dendrite'],
+        default=None,
     )
     args = parser.parse_args()
 
@@ -78,17 +70,14 @@ def main():
 
         rules, params = all_rules.bind(annotations, mtype=mtype)
 
-        result, scores = algorithm.choose_morphology(
-            profile, rules, params, alpha=args.alpha, seed=args.seed, return_scores=True
+        result = algorithm.score_morphologies(
+            profile, rules, params, segment_type=args.segment_type
         )
 
-        print("Result: %s (score=%.3f)" % (result, scores.loc[result, 'total']))
-
-        print("Scores:")
-        scores.sort_values('total', ascending=False, inplace=True)
-        scores.index.name = 'morphology'
-        scores.rename(columns=lambda s: s.replace(' ', ''), inplace=True)
-        scores.to_csv(sys.stdout, sep='\t', float_format="%.3f", index=True)
+        result.sort_values('total', ascending=False, inplace=True)
+        result.index.name = 'morphology'
+        result.rename(columns=lambda s: s.replace(' ', ''), inplace=True)
+        result.to_csv(sys.stdout, sep='\t', float_format="%.3f", index=True)
 
 
 if __name__ == '__main__':
