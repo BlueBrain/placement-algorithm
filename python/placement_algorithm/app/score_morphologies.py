@@ -20,7 +20,7 @@ L = logging.getLogger('score-morphologies')
 def _list_morphologies(morphdb, mtype, etype=None):
     # pylint: disable=unused-argument
     query = 'mtype == @mtype'
-    if etype is not None:
+    if ('etype' in morphdb) and (etype is not None):
         query += ' and etype == @etype'
     return morphdb.query(query)['morphology'].unique()
 

@@ -10,6 +10,23 @@ if sys.version_info < (2, 7):
 
 VERSION = imp.load_source("", "placement_algorithm/version.py").__version__
 
+APP_EXTRAS = [
+    'morphio>=2.0',
+    'morph-tool>=0.1',
+    'tqdm>=4.0',
+    'ujson>=1.0',
+    'voxcell>=2.5',
+]
+
+SYNTHESIS_EXTRAS = [
+    'region-grower',
+    'tns',
+]
+
+MPI_EXTRAS = [
+    'mpi4py>=3.0',
+]
+
 setup(
     name="placement-algorithm",
     author="BlueBrain NSE",
@@ -26,24 +43,19 @@ setup(
         'six>=1.0',
     ],
     extras_require={
-        'app': [
-            'morphio>=2.0',
-            'tqdm>=4.0',
-            'ujson>=1.0',
-            'voxcell>=2.5',
-        ],
-        'mpi': [
-            'mpi4py>=3.0',
-
-        ],
+        'app': APP_EXTRAS,
+        'synthesis': SYNTHESIS_EXTRAS,
+        'mpi': MPI_EXTRAS,
+        'all': APP_EXTRAS + SYNTHESIS_EXTRAS + MPI_EXTRAS
     },
     packages=find_packages(),
     entry_points={
       'console_scripts': [
+          'assign-morphologies=placement_algorithm.app.assign_morphologies:main',
           'choose-morphologies=placement_algorithm.app.choose_morphologies:main',
-          'compose-morphologies=placement_algorithm.app.compose_morphologies:main',
           'compact-annotations=placement_algorithm.app.compact_annotations:main',
           'score-morphologies=placement_algorithm.app.score_morphologies:main',
+          'synthesize-morphologies=placement_algorithm.app.synthesize_morphologies:main',
       ]
     },
     classifiers=[
