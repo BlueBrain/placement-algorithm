@@ -9,6 +9,7 @@ import sys
 import argparse
 import logging
 
+import pandas as pd
 import ujson
 
 from placement_algorithm import algorithm, files
@@ -23,6 +24,22 @@ def _list_morphologies(morphdb, mtype, etype=None):
     if ('etype' in morphdb) and (etype is not None):
         query += ' and etype == @etype'
     return morphdb.query(query)['morphology'].unique()
+
+
+def _score_morphologies(profile, rules, params, scales=None, segment_type=None):
+    if scales is None:
+        result = algorithm.score_morphologies(
+            profile, rules, params, segment_type=segment_type
+        )
+        result.index.name = 'morphology'
+    else:
+        result = {}
+        for scale in scales:
+            result[scale] = algorithm.score_morphologies(
+                profile, rules, params, scale=scale, segment_type=segment_type
+            )
+        result = pd.concat(result, names=('scale', 'morphology')).swaplevel()
+    return result
 
 
 def main():
@@ -42,6 +59,13 @@ def main():
     )
     parser.add_argument(
         "--rules", help="Path to placement rules file", required=True,
+    )
+    parser.add_argument(
+        "--scales",
+        type=float,
+        nargs='+',
+        help="Scale(s) to check",
+        default=None
     )
     parser.add_argument(
         "--segment-type", help="Segment type to consider (if not specified, consider both)",
@@ -70,12 +94,11 @@ def main():
 
         rules, params = all_rules.bind(annotations, mtype=mtype)
 
-        result = algorithm.score_morphologies(
-            profile, rules, params, segment_type=args.segment_type
+        result = _score_morphologies(
+            profile, rules, params, scales=args.scales, segment_type=args.segment_type
         )
 
         result.sort_values('total', ascending=False, inplace=True)
-        result.index.name = 'morphology'
         result.rename(columns=lambda s: s.replace(' ', ''), inplace=True)
         result.to_csv(sys.stdout, sep='\t', float_format="%.3f", na_rep='NaN', index=True)
 

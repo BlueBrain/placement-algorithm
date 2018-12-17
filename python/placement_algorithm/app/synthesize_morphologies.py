@@ -252,7 +252,12 @@ class Worker(WorkerApp):
         """
         rec = morph_list.loc[gid]
         result = self.morph_cache.get(rec['morphology']).as_mutable()
-        mt.rotate(result, utils.random_rotation_y(n=1)[0])
+        transform = np.identity(4)
+        transform[:3, :3] = utils.random_rotation_y(n=1)[0]
+        if 'scale' in rec:
+            transform = np.identity(4)
+            transform[1, :] *= rec['scale']  # scale along Y-axis
+        mt.transform(result, transform)
         return result
 
     def __call__(self, gid):

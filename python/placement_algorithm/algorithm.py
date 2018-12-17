@@ -55,9 +55,9 @@ class YBelowRule(Rule):
             segment_type=attr['segment_type']
         )
 
-    def __call__(self, position, annotation):
+    def __call__(self, position, annotation, scale=1.0):
         y_limit = y_absolute(self.y_rel, position)
-        delta = (position['y'] + annotation['y_max'].values) - y_limit
+        delta = (position['y'] + scale * annotation['y_max'].values) - y_limit
         result = 1.0 - delta / self.tolerance
         result = np.clip(result, a_min=0.0, a_max=1.0)
         return pd.Series(result, index=annotation.index)
@@ -90,13 +90,13 @@ class YRangeOverlapRule(Rule):
             segment_type=attr['segment_type']
         )
 
-    def __call__(self, position, annotation):
+    def __call__(self, position, annotation, scale=1.0):
         y1 = y_absolute(self.y_rel_min, position)
         y2 = y_absolute(self.y_rel_max, position)
         if np.isclose(y1, y2):
             return pd.Series(0.0, index=annotation.index)
-        y1c = position['y'] + annotation['y_min'].values
-        y2c = position['y'] + annotation['y_max'].values
+        y1c = position['y'] + scale * annotation['y_min'].values
+        y2c = position['y'] + scale * annotation['y_max'].values
         y1o = np.maximum(y1, y1c)
         y2o = np.minimum(y2, y2c)
         score = np.where(
@@ -147,7 +147,14 @@ def aggregate_optional_score(scores):
     return scores.apply(_hmean, axis=1).fillna(1.0)
 
 
-def score_morphologies(position, rules, params, segment_type=None):
+def _scale_bias(scale):
+    if scale > 1.0:
+        return 1.0 / scale
+    else:
+        return scale
+
+
+def score_morphologies(position, rules, params, scale=1.0, segment_type=None):
     """
     Calculate placement score for a batch of annotated morphologies.
 
@@ -155,6 +162,7 @@ def score_morphologies(position, rules, params, segment_type=None):
         position: layer profile (a mapping with 'y' + '<layer>_[0|1]' values)
         rules: dict of placement rules functors
         params: pandas DataFrame with morphology annotations
+        scale: scale factor along Y-axis
         segment_type: if specified, check only corresponding rules ('axon' or 'dendrite')
 
     Returns:
@@ -171,18 +179,18 @@ def score_morphologies(position, rules, params, segment_type=None):
         if (segment_type is not None) and (rule.segment_type != segment_type):
             continue
         annotation = params[rule_id].dropna()
-        result[rule_id] = rule(position=position, annotation=annotation)
+        result[rule_id] = rule(position=position, annotation=annotation, scale=scale)
         if rule.strict:
             strict.append(rule_id)
         else:
             optional.append(rule_id)
     result['strict'] = aggregate_strict_score(result[strict])
     result['optional'] = aggregate_optional_score(result[optional])
-    result['total'] = result['strict'] * result['optional']
+    result['total'] = result['strict'] * result['optional'] * _scale_bias(scale)
     return result
 
 
-def choose_morphology(position, rules, params, alpha=1.0, segment_type=None):
+def choose_morphology(position, rules, params, alpha=1.0, scales=None, segment_type=None):
     """
     Choose morphology from a list of annotated morphologies.
 
@@ -191,16 +199,24 @@ def choose_morphology(position, rules, params, alpha=1.0, segment_type=None):
         rules: dict of placement rules functors
         params: pandas DataFrame with morphology annotations
         alpha: exponential factor for scores
+        scales: list of scales to choose from
         segment_type: if specified, check only corresponding rules ('axon' or 'dendrite')
 
     Returns:
         Morphology picked at random with scores ** alpha as probability weights
         (`None` if all the morphologies score 0).
     """
-    scores = score_morphologies(position, rules, params, segment_type=segment_type)
-    morphs = scores.index.values
+    if scales is None:
+        scores = score_morphologies(position, rules, params, segment_type=segment_type)
+    else:
+        scores = {}
+        for scale in scales:
+            scores[scale] = score_morphologies(
+                position, rules, params, scale=scale, segment_type=segment_type
+            )
+        scores = pd.concat(scores).swaplevel()
     weights = scores['total'].values ** alpha
     w_sum = np.sum(weights)
     if np.isclose(w_sum, 0.0):
         return None
-    return np.random.choice(morphs, p=weights / w_sum)
+    return np.random.choice(scores.index.values, p=weights / w_sum)

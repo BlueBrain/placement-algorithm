@@ -132,6 +132,13 @@ class Master(MasterApp):
             default=1.0
         )
         parser.add_argument(
+            "--scales",
+            type=float,
+            nargs='+',
+            help="Scale(s) to check",
+            default=None
+        )
+        parser.add_argument(
             "--seed",
             help="Random number generator seed (default: %(default)s)",
             type=int,
@@ -208,9 +215,13 @@ class Master(MasterApp):
           - calculate N/A ratio by mtype
           - dump morphology list to TSV file
         """
-        result = pd.DataFrame({
-            'morphology': pd.Series(result)
-        })
+        if self.args.scales is None:
+            result = pd.DataFrame({
+                'morphology': pd.Series(result)
+            })
+        else:
+            result = pd.DataFrame(result, index=['morphology', 'scale']).transpose()
+
         na_mask = result.isnull().any(axis=1)
         if na_mask.any():
             stats = _failure_ratio_by_mtype(self.cells.properties['mtype'], na_mask)
@@ -225,6 +236,7 @@ class Master(MasterApp):
                     Failed to choose morphologies for some positions.
                     Please re-run with `--allow-na` if it is acceptable.
                 """)
+
         utils.dump_morphology_list(result, self.args.output)
 
 
@@ -246,6 +258,7 @@ class Worker(WorkerApp):
         self.cells = CellCollection.load_mvd3(args.mvd3)
         self.atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
         self.alpha = args.alpha
+        self.scales = args.scales
         self.seed = args.seed
         self.segment_type = args.segment_type
         _fetch_atlas_data(self.atlas, self.layer_names, memcache=True)
@@ -279,7 +292,8 @@ class Worker(WorkerApp):
         profile = self._get_profile(gid)
         rules, params = self._get_annotations(gid)
         return algorithm.choose_morphology(
-            profile, rules, params, alpha=self.alpha, segment_type=self.segment_type
+            profile, rules, params,
+            alpha=self.alpha, scales=self.scales, segment_type=self.segment_type
         )
 
 

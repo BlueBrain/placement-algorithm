@@ -138,6 +138,12 @@ def test_aggregate_optional_score_empty():
         pd.Series([1.0, 1.0], index=scores.index)
     )
 
+def test_scale_bias():
+    npt.assert_almost_equal(test_module._scale_bias(1.0), 1.0)
+    npt.assert_almost_equal(test_module._scale_bias(0.5), 0.5)
+    npt.assert_almost_equal(test_module._scale_bias(2.0), 0.5)
+    npt.assert_almost_equal(test_module._scale_bias(0.25), 0.25)
+    npt.assert_almost_equal(test_module._scale_bias(4.0), 0.25)
 
 
 def test_score_morphologies_1():
@@ -235,7 +241,10 @@ def test_choose_morphology_1(score_mock, np_random_mock):
         'total': [0.1, 0.9]
     }, index=['morph-1', 'morph-2'])
     score_mock.configure_mock(**{'return_value': scores})
-    test_module.choose_morphology(mock.ANY, mock.ANY, mock.ANY, alpha=2.0)
+    test_module.choose_morphology('position', 'rules', 'params', alpha=2.0, segment_type='axon')
+    score_mock.assert_called_once_with(
+        'position', 'rules', 'params', segment_type='axon'
+    )
     np.random.choice.assert_called_once()
     npt.assert_equal(np.random.choice.call_args[0][0], ['morph-1', 'morph-2'])
     npt.assert_almost_equal(np.random.choice.call_args[1]['p'], [0.012195, 0.987805])
@@ -248,4 +257,33 @@ def test_choose_morphology_2(score_mock):
     }, index=['morph-1', 'morph-2'])
     score_mock.configure_mock(**{'return_value': scores})
     actual = test_module.choose_morphology(mock.ANY, mock.ANY, mock.ANY, alpha=2.0)
+    nt.assert_is_none(actual)
+
+
+@mock.patch('numpy.random')
+@mock.patch('placement_algorithm.algorithm.score_morphologies')
+def test_choose_morphology_3(score_mock, np_random_mock):
+    scores = pd.DataFrame({
+        'total': [0.1, 0.9]
+    }, index=['morph-1', 'morph-2'])
+    score_mock.configure_mock(**{'return_value': scores})
+    test_module.choose_morphology('position', 'rules', 'params', alpha=2.0, scales=[0.5, 2.0])
+    score_mock.assert_has_calls([
+        mock.call('position', 'rules', 'params', scale=0.5, segment_type=None),
+        mock.call('position', 'rules', 'params', scale=2.0, segment_type=None),
+    ])
+    np.random.choice.assert_called_once()
+    nt.assert_equal(
+        sorted(np.random.choice.call_args[0][0]),
+        [('morph-1', 0.5), ('morph-1', 2.0), ('morph-2', 0.5), ('morph-2', 2.0)]
+    )
+
+
+@mock.patch('placement_algorithm.algorithm.score_morphologies')
+def test_choose_morphology_4(score_mock):
+    scores = pd.DataFrame({
+        'total': [0.0, 1e-12]
+    }, index=['morph-1', 'morph-2'])
+    score_mock.configure_mock(**{'return_value': scores})
+    actual = test_module.choose_morphology(mock.ANY, mock.ANY, mock.ANY, alpha=2.0, scales=[0.5, 2.0])
     nt.assert_is_none(actual)

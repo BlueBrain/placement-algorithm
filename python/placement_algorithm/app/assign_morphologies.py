@@ -15,6 +15,7 @@ import logging
 import numpy as np
 import pandas as pd
 
+import morph_tool.transform as mt
 from morph_tool.graft import find_axon, graft_axon
 from morph_tool.loader import MorphLoader
 
@@ -238,6 +239,10 @@ class Worker(WorkerApp):
         if rec['morphology'] is None:
             return None
         result = self.morph_cache.get(rec['morphology']).as_mutable()
+        if 'scale' in rec:
+            transform = np.identity(4)
+            transform[1, :] *= rec['scale']  # scale along Y-axis
+            mt.transform(result, transform)
         return result
 
     def __call__(self, gid):
@@ -285,9 +290,14 @@ def main():
             raise RuntimeError(
                 "`--morph-axon` should be used with `--instantiate`"
             )
+        morph_list = utils.load_morphology_list(args.morph)
+        if 'scale' in morph_list:
+            raise RuntimeError("""
+                Morphology list specifies scaling factors.
+                It should be used with `--instantiate`.
+            """)
         app = Master()
         app.setup(args)
-        morph_list = utils.load_morphology_list(args.morph)
         app.finalize(morph_list['morphology'])
 
 

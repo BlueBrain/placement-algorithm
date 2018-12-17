@@ -66,8 +66,10 @@ def dump_morphology_list(morph_list, output_path):
 def load_morphology_list(filepath, check_gids=None):
     """ Read morphology list from tab-separated file. """
     import pandas as pd
-    result = pd.read_csv(filepath, sep=r'\s+', index_col=0, na_filter=False)
-    result['morphology'].replace({'N/A': None}, inplace=True)
+    result = pd.read_csv(
+        filepath, sep=r'\s+', index_col=0, dtype={'morphology': object, 'scale': float}
+    )
+    result['morphology'].replace({np.nan: None}, inplace=True)
     if check_gids is not None:
         if sorted(result.index) != sorted(check_gids):
             raise RuntimeError("Morphology list GIDs mismatch")
