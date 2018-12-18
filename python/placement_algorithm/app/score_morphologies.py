@@ -77,7 +77,7 @@ def main():
         result.sort_values('total', ascending=False, inplace=True)
         result.index.name = 'morphology'
         result.rename(columns=lambda s: s.replace(' ', ''), inplace=True)
-        result.to_csv(sys.stdout, sep='\t', float_format="%.3f", index=True)
+        result.to_csv(sys.stdout, sep='\t', float_format="%.3f", na_rep='NaN', index=True)
 
 
 if __name__ == '__main__':

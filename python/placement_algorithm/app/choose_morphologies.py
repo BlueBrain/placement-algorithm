@@ -48,12 +48,10 @@ def _bind_annotations(annotations, morphdb, rules):
         from `morphdb` corresponding to `m(e)type`.
     """
     result = {}
-    if 'etype' in morphdb:
-        key_columns = ['mtype', 'etype']
-    else:
-        key_columns = ['mtype']
+    with_etype = ('etype' in morphdb)
+    key_columns = ['mtype', 'etype'] if with_etype else ['mtype']
     for key, group in morphdb.groupby(key_columns):
-        mtype = key[0]
+        mtype = key[0] if with_etype else key
         mtype_annotations = {
             m: annotations[m] for m in group['morphology'].unique()
         }
