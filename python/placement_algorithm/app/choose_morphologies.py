@@ -230,14 +230,11 @@ class Worker(WorkerApp):
 
     def _get_profile(self, gid):
         """ Query layer profile for given GID. """
-        xyz = self.cells.positions[gid]
-        result = {}
-        result['y'] = self.atlas.load_data('[PH]y').lookup(xyz)
-        for layer in self.layer_names:
-            y0, y1 = self.atlas.load_data('[PH]%s' % layer).lookup(xyz)
-            result['%s_0' % layer] = y0
-            result['%s_1' % layer] = y1
-        return result
+        return utils.get_layer_profile(
+            self.cells.positions[gid],
+            self.atlas,
+            self.layer_names
+        )
 
     def _get_annotations(self, gid):
         """ Get annotated morphologies matching given GID. """

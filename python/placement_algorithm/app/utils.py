@@ -44,6 +44,17 @@ def multiply_matrices(A, B):
     return np.einsum('...ij,...jk->...ik', A, B)
 
 
+def get_layer_profile(xyz, atlas, layer_names):
+    """ Get layer profile for given position. """
+    result = {}
+    result['y'] = atlas.load_data('[PH]y').lookup(xyz)
+    for layer in layer_names:
+        y0, y1 = atlas.load_data('[PH]%s' % layer).lookup(xyz)
+        result['%s_0' % layer] = y0
+        result['%s_1' % layer] = y1
+    return result
+
+
 def dump_morphology_list(morph_list, output_path):
     """ Dump morphology list to tab-separated file. """
     morph_list.to_csv(output_path, sep='\t', na_rep='N/A')

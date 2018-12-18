@@ -54,6 +54,7 @@ setup(
           'assign-morphologies=placement_algorithm.app.assign_morphologies:main',
           'choose-morphologies=placement_algorithm.app.choose_morphologies:main',
           'compact-annotations=placement_algorithm.app.compact_annotations:main',
+          'dump-profiles=placement_algorithm.app.dump_profiles:main',
           'score-morphologies=placement_algorithm.app.score_morphologies:main',
           'synthesize-morphologies=placement_algorithm.app.synthesize_morphologies:main',
       ]
