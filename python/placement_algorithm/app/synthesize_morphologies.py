@@ -86,6 +86,12 @@ class Master(MasterApp):
             help="Morphology export format(s)",
             default=['h5']
         )
+        parser.add_argument(
+            "--max-files-per-dir",
+            help="Maximum files per level for morphology output folder",
+            type=int,
+            default=None
+        )
         return parser.parse_args()
 
     @property
@@ -132,12 +138,15 @@ class Master(MasterApp):
         logging.basicConfig(level=logging.ERROR)
         self.logger.setLevel(logging.INFO)
 
-        LOGGER.info("Preparing morphology output folder...")
-        morph_writer = utils.MorphWriter(args.out_morph_dir, args.out_morph_ext)
-        morph_writer.prepare()
-
         self.logger.info("Loading CellCollection...")
         self.cells = CellCollection.load_mvd3(args.mvd3)
+
+        LOGGER.info("Preparing morphology output folder...")
+        morph_writer = utils.MorphWriter(args.out_morph_dir, args.out_morph_ext)
+        morph_writer.prepare(
+            num_files=len(self.cells.positions),
+            max_files_per_dir=args.max_files_per_dir
+        )
 
         self._check_tmd_parameters(args.tmd_parameters)
         self._check_tmd_distributions(args.tmd_distributions)
@@ -266,7 +275,7 @@ class Worker(WorkerApp):
         if self.axon_morph_list is not None:
             axon_morph = self._load_morphology(self.axon_morph_list, gid)
             graft_axon(morph, find_axon(axon_morph))
-        return self.morph_writer(morph, gid)
+        return self.morph_writer(morph, seed=seed)
 
 
 def main():

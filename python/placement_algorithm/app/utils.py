@@ -2,6 +2,9 @@
 Miscellaneous utilities.
 """
 import os
+import random
+import uuid
+
 import numpy as np
 
 
@@ -76,23 +79,68 @@ class MorphWriter(object):
     def __init__(self, output_dir, file_ext):
         self.output_dir = os.path.realpath(output_dir)
         self.file_ext = file_ext
+        self._dir_depth = None
 
-    def prepare(self):
+    @staticmethod
+    def _calc_dir_depth(num_files, max_files_per_dir=None):
+        """ Directory depth required to have no more than given number of files per folder. """
+        if (max_files_per_dir is None) or (num_files < max_files_per_dir):
+            return None
+        if max_files_per_dir < 256:
+            raise RuntimeError("""
+                Less than 256 files per folder is too restrictive.
+            """)
+        result, capacity = 0, max_files_per_dir
+        while capacity < num_files:
+            result += 1
+            capacity *= 256
+        if result > 3:
+            raise RuntimeError("""
+                More than three intermediate folders is a bit too much.
+            """)
+        return result
+
+    @staticmethod
+    def _make_subdirs(dirpath, depth):
+        os.mkdir(dirpath)
+        if depth <= 0:
+            return
+        for sub in range(256):
+            MorphWriter._make_subdirs(os.path.join(dirpath, "%02x" % sub), depth - 1)
+
+    def prepare(self, num_files, max_files_per_dir=None):
         """
         Prepare output directory.
 
           - ensure it either does not exist, or is empty
           - if it does not exist, create an empty one
         """
+        self._dir_depth = MorphWriter._calc_dir_depth(
+            num_files * len(self.file_ext), max_files_per_dir
+        )
         if os.path.exists(self.output_dir):
             if os.listdir(self.output_dir):
                 raise RuntimeError("Non-empty morphology output folder '%s'" % self.output_dir)
         else:
             os.makedirs(self.output_dir)
+        if self._dir_depth is not None:
+            MorphWriter._make_subdirs(os.path.join(self.output_dir, 'hashed'), self._dir_depth)
 
-    def __call__(self, morph, gid):
-        morph_name = "a%08d" % gid
+    def _generate_name(self, seed):
+        morph_name = uuid.UUID(int=random.Random(seed).getrandbits(128)).hex
+        if self._dir_depth is None:
+            subdirs = ''
+        else:
+            subdirs = 'hashed'
+            assert len(morph_name) >= 2 * self._dir_depth
+            for k in range(self._dir_depth):
+                sub = morph_name[2 * k: 2 * k + 2]
+                subdirs = os.path.join(subdirs, sub)
+        return morph_name, subdirs
+
+    def __call__(self, morph, seed):
+        morph_name, subdirs = self._generate_name(seed)
         for ext in self.file_ext:
-            filepath = os.path.join(self.output_dir, "%s.%s" % (morph_name, ext))
+            filepath = os.path.join(self.output_dir, subdirs, "%s.%s" % (morph_name, ext))
             morph.write(filepath)
         return morph_name

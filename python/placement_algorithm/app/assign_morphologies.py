@@ -123,6 +123,12 @@ class Master(MasterApp):
             help="Morphology export format(s)",
             default=['h5']
         )
+        parser.add_argument(
+            "--max-files-per-dir",
+            help="Maximum files per level for morphology output folder",
+            type=int,
+            default=None
+        )
         return parser.parse_args()
 
     @property
@@ -152,15 +158,18 @@ class Master(MasterApp):
         logging.basicConfig(level=logging.ERROR)
         self.logger.setLevel(logging.INFO)
 
+        LOGGER.info("Loading CellCollection...")
+        self.cells = CellCollection.load_mvd3(args.mvd3)
+
         if args.instantiate:
             LOGGER.info("Preparing morphology output folder...")
             morph_writer = utils.MorphWriter(args.out_morph_dir, args.out_morph_ext)
-            morph_writer.prepare()
+            morph_writer.prepare(
+                num_files=len(self.cells.positions),
+                max_files_per_dir=args.max_files_per_dir
+            )
         else:
             morph_writer = None
-
-        LOGGER.info("Loading CellCollection...")
-        self.cells = CellCollection.load_mvd3(args.mvd3)
 
         LOGGER.info("Assigning CellCollection 'orientation' property...")
         atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
@@ -250,7 +259,7 @@ class Worker(WorkerApp):
             if axon_morph is None:
                 return None
             graft_axon(morph, find_axon(axon_morph))
-        return self.morph_writer(morph, gid)
+        return self.morph_writer(morph, seed=gid)
 
 
 def main():
