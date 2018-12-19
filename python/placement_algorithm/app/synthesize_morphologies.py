@@ -204,11 +204,20 @@ class Worker(WorkerApp):
         )
         self.seed = args.seed
 
-        if args.axon_morph is None:
+        if args.morph_axon is None:
             self.axon_morph_list = None
         else:
-            self.axon_morph_list = utils.load_morphology_list(args.axon_morph)
+            self.axon_morph_list = utils.load_morphology_list(args.morph_axon)
             self.morph_cache = MorphLoader(args.base_morph_dir, file_ext='h5')
+
+    def _get_distributions(self, mtype):
+        return self.distributions[mtype]
+
+    def _get_parameters(self, xyz, mtype):
+        if mtype not in self.parameters:
+            mtype = '__default__'
+        params = self.parameters[mtype]
+        return self.context.get_corrected_params(params, xyz)
 
     def _synthesize(self, xyz, mtype):
         """
@@ -217,11 +226,9 @@ class Worker(WorkerApp):
         Returns:
             morphio.mut.Morphology instance.
         """
-        params = self.context.get_corrected_params(self.parameters[mtype], xyz)
-        distribution = self.distributions[mtype]
         grower = NeuronGrower(
-            input_parameters=params,
-            input_distributions=distribution
+            input_parameters=self._get_parameters(xyz, mtype),
+            input_distributions=self._get_distributions(mtype)
         )
         return grower.grow()
 
@@ -236,7 +243,7 @@ class Worker(WorkerApp):
         """
         rec = morph_list.loc[gid]
         result = self.morph_cache.get(rec['morphology']).as_mutable()
-        mt.rotate(result, utils.random_rotation_y(n=1))
+        mt.rotate(result, utils.random_rotation_y(n=1)[0])
         return result
 
     def __call__(self, gid):

@@ -33,6 +33,29 @@ def _fetch_atlas_data(atlas, layer_names, memcache=False):
             atlas.fetch_data(dset)
 
 
+def _metype_columns(with_etype):
+    if with_etype:
+        return ['mtype', 'etype']
+    else:
+        return ['mtype']
+
+
+def _unique_values(df, columns):
+    return set(
+        df[columns].drop_duplicates().itertuples(index=False, name=None)
+    )
+
+
+def _check_has_metypes(morphdb, traits):
+    key_columns = _metype_columns(with_etype=('etype' in morphdb))
+    required = _unique_values(traits, key_columns)
+    missing = required - _unique_values(morphdb, key_columns)
+    if missing:
+        raise RuntimeError("""
+            Missing m(e)types in (ext)neurondb.dat: [%s]
+        """ % sorted(missing))
+
+
 def _bind_annotations(annotations, morphdb, rules):
     """
     Bind "raw" annotations to corresponding mtype rules.
@@ -48,10 +71,9 @@ def _bind_annotations(annotations, morphdb, rules):
         from `morphdb` corresponding to `m(e)type`.
     """
     result = {}
-    with_etype = ('etype' in morphdb)
-    key_columns = ['mtype', 'etype'] if with_etype else ['mtype']
+    key_columns = _metype_columns(with_etype=('etype' in morphdb))
     for key, group in morphdb.groupby(key_columns):
-        mtype = key[0] if with_etype else key
+        mtype = key[0] if isinstance(key, tuple) else key
         mtype_annotations = {
             m: annotations[m] for m in group['morphology'].unique()
         }
@@ -152,6 +174,8 @@ class Master(MasterApp):
 
         LOGGER.info("Loading MorphDB...")
         morphdb = files.parse_morphdb(args.morphdb)
+
+        _check_has_metypes(morphdb, self.cells.properties)
 
         LOGGER.info("Loading and binding annotations...")
         annotations = _bind_annotations(
