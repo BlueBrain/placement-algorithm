@@ -34,10 +34,10 @@ def _fetch_atlas_data(atlas, layer_names, memcache=False):
 
 
 def _metype_columns(with_etype):
+    result = ['layer', 'mtype']
     if with_etype:
-        return ['mtype', 'etype']
-    else:
-        return ['mtype']
+        result.append('etype')
+    return result
 
 
 def _unique_values(df, columns):
@@ -72,12 +72,15 @@ def _bind_annotations(annotations, morphdb, rules):
     """
     result = {}
     key_columns = _metype_columns(with_etype=('etype' in morphdb))
+    mtype_idx = key_columns.index('mtype')
     for key, group in morphdb.groupby(key_columns):
-        mtype = key[0] if isinstance(key, tuple) else key
-        mtype_annotations = {
+        if not isinstance(key, tuple):
+            key = (key,)
+        mtype = key[mtype_idx]
+        group_annotations = {
             m: annotations[m] for m in group['morphology'].unique()
         }
-        result[key] = rules.bind(mtype_annotations, mtype)
+        result[key] = rules.bind(group_annotations, mtype)
     return result
 
 
@@ -245,7 +248,7 @@ class Worker(WorkerApp):
     def __init__(self, annotations, layer_names, with_etype):
         self.annotations = annotations
         self.layer_names = layer_names
-        self.with_etype = with_etype
+        self.key_columns = _metype_columns(with_etype=with_etype)
 
     def setup(self, args):
         """
@@ -273,11 +276,7 @@ class Worker(WorkerApp):
 
     def _get_annotations(self, gid):
         """ Get annotated morphologies matching given GID. """
-        traits = self.cells.properties.loc[gid]
-        if self.with_etype:
-            key = (traits['mtype'], traits['etype'])
-        else:
-            key = traits['mtype']
+        key = tuple(self.cells.properties.loc[gid, self.key_columns])
         return self.annotations[key]
 
     def __call__(self, gid):
