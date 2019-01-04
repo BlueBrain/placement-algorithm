@@ -22,14 +22,14 @@ def test_invalid_segment_type():
     )
 
 
-def test_y_below_rule_create():
+def test_below_rule_create():
     elem = mock.Mock(attrib={
         'y_layer': 'L1',
         'y_fraction': 0.5,
         'tolerance': 50.0,
         'segment_type': 'axon'
     })
-    rule = test_module.YBelowRule.from_xml(elem)
+    rule = test_module.BelowRule.from_xml(elem)
     nt.assert_equal(rule.y_rel, ('L1', 0.5))
     nt.assert_equal(rule.tolerance, 50.0)
     nt.assert_true(rule.strict)
@@ -37,8 +37,8 @@ def test_y_below_rule_create():
     nt.assert_equal(rule.ANNOTATION_PARAMS, ['y_max'])
 
 
-def test_y_below_rule():
-    rule = test_module.YBelowRule(
+def test_below_rule():
+    rule = test_module.BelowRule(
         y_rel=('L1', 0.5), tolerance=30.0, segment_type='axon'
     )
     position = {'y': 110.0, 'L1_0': 100, 'L1_1': 200}
@@ -51,7 +51,7 @@ def test_y_below_rule():
     )
 
 
-def test_y_range_overlap_rule_create():
+def test_region_target_rule_create():
     elem = mock.Mock(attrib={
         'y_min_layer': 'L1',
         'y_min_fraction': 0.0,
@@ -59,7 +59,7 @@ def test_y_range_overlap_rule_create():
         'y_max_fraction': 0.5,
         'segment_type': 'dendrite'
     })
-    rule = test_module.YRangeOverlapRule.from_xml(elem)
+    rule = test_module.RegionTargetRule.from_xml(elem)
     nt.assert_equal(rule.y_rel_min, ('L1', 0.0))
     nt.assert_equal(rule.y_rel_max, ('L1', 0.5))
     nt.assert_false(rule.strict)
@@ -67,8 +67,8 @@ def test_y_range_overlap_rule_create():
     nt.assert_equal(rule.ANNOTATION_PARAMS, ['y_min', 'y_max'])
 
 
-def test_y_range_overlap_rule_1():
-    rule = test_module.YRangeOverlapRule(
+def test_region_target_rule_1():
+    rule = test_module.RegionTargetRule(
         y_rel_min=('L1', 0.0),  y_rel_max=('L1', 0.5), segment_type='axon'
     )
     position = {'y': 20.0, 'L1_0': 20.0, 'L1_1': 30.0}
@@ -82,8 +82,8 @@ def test_y_range_overlap_rule_1():
     )
 
 
-def test_y_range_overlap_rule_2():
-    rule = test_module.YRangeOverlapRule(
+def test_region_target_rule_2():
+    rule = test_module.RegionTargetRule(
         y_rel_min=('L1', 0.0),  y_rel_max=('L1', 0.5), segment_type='dendrite'
     )
     position = {'y': 20.0, 'L1_0': 20.0, 'L1_1': 20.0}  # 'L1' is empty
@@ -94,6 +94,21 @@ def test_y_range_overlap_rule_2():
     pdt.assert_series_equal(
         rule(position, annotations),
         pd.Series(0.0, index=annotations.index)
+    )
+
+
+def test_region_occupy_rule_1():
+    rule = test_module.RegionOccupyRule(
+        y_rel_min=('L1', 0.0),  y_rel_max=('L1', 0.5), segment_type='axon'
+    )
+    position = {'y': 20.0, 'L1_0': 20.0, 'L1_1': 30.0}
+    annotations = pd.DataFrame({
+        'y_min': [-4.0, -2.0, 2.0],
+        'y_max': [-2.0,  2.0, 3.0],
+    }, index=list('abc'))
+    pdt.assert_series_equal(
+        rule(position, annotations),
+        pd.Series([0.0, 0.4, 0.2], index=annotations.index)
     )
 
 

@@ -40,10 +40,10 @@ def test_placement_rules_parse(logger):
         sorted(mtype_rules),
         ['L1_axon_hard_limit', 'L1_hard_limit', 'axon, Layer_1', 'axon, Layer_1, fill']
     )
-    nt.assert_is_instance(mtype_rules['L1_axon_hard_limit'], test_module.YBelowRule)
-    nt.assert_is_instance(mtype_rules['L1_hard_limit'], test_module.YBelowRule)
-    nt.assert_is_instance(mtype_rules['axon, Layer_1'], test_module.YRangeOverlapRule)
-    nt.assert_is_instance(mtype_rules['axon, Layer_1, fill'], test_module.YRangeOverlapRule)
+    nt.assert_is_instance(mtype_rules['L1_axon_hard_limit'], test_module.BelowRule)
+    nt.assert_is_instance(mtype_rules['L1_hard_limit'], test_module.BelowRule)
+    nt.assert_is_instance(mtype_rules['axon, Layer_1'], test_module.RegionTargetRule)
+    nt.assert_is_instance(mtype_rules['axon, Layer_1, fill'], test_module.RegionOccupyRule)
     nt.assert_equal(rules.layer_names, set(['1', '2']))
 
 

@@ -11,15 +11,15 @@ import pandas as pd
 
 from six import iteritems
 
-from placement_algorithm.algorithm import YBelowRule, YRangeOverlapRule
+from placement_algorithm.algorithm import BelowRule, RegionTargetRule, RegionOccupyRule
 from placement_algorithm.exceptions import PlacementError
 from placement_algorithm.logger import LOGGER
 
 
 DISPATCH_RULES = {
-    'below': YBelowRule,
-    'region_target': YRangeOverlapRule,
-    'region_occupy': YRangeOverlapRule,
+    'below': BelowRule,
+    'region_target': RegionTargetRule,
+    'region_occupy': RegionOccupyRule,
 }
 
 

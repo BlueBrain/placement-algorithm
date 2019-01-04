@@ -28,7 +28,7 @@ class Rule(object):
         self.strict = strict
 
 
-class YBelowRule(Rule):
+class BelowRule(Rule):
     """
     Check that 'y' does not exceed given limit.
 
@@ -41,7 +41,7 @@ class YBelowRule(Rule):
     ANNOTATION_PARAMS = ['y_max']
 
     def __init__(self, y_rel, tolerance, segment_type):
-        super(YBelowRule, self).__init__(segment_type, strict=True)
+        super(BelowRule, self).__init__(segment_type, strict=True)
         self.y_rel = y_rel
         self.tolerance = tolerance
 
@@ -63,7 +63,7 @@ class YBelowRule(Rule):
         return pd.Series(result, index=annotation.index)
 
 
-class YRangeOverlapRule(Rule):
+class RegionTargetRule(Rule):
     """
     Check that '[y1; y2]' falls within given interval.
 
@@ -76,7 +76,7 @@ class YRangeOverlapRule(Rule):
     ANNOTATION_PARAMS = ['y_min', 'y_max']
 
     def __init__(self, y_rel_min, y_rel_max, segment_type):
-        super(YRangeOverlapRule, self).__init__(segment_type, strict=False)
+        super(RegionTargetRule, self).__init__(segment_type, strict=False)
         self.y_rel_min = y_rel_min
         self.y_rel_max = y_rel_max
 
@@ -90,6 +90,16 @@ class YRangeOverlapRule(Rule):
             segment_type=attr['segment_type']
         )
 
+    @staticmethod
+    def _score_overlap(y1, y2, y1c, y2c):
+        y1o = np.maximum(y1, y1c)
+        y2o = np.minimum(y2, y2c)
+        return np.where(
+            y2o > y1o,
+            (y2o - y1o) / np.minimum(y2 - y1, y2c - y1c),
+            0.0
+        )
+
     def __call__(self, position, annotation, scale=1.0):
         y1 = y_absolute(self.y_rel_min, position)
         y2 = y_absolute(self.y_rel_max, position)
@@ -97,14 +107,28 @@ class YRangeOverlapRule(Rule):
             return pd.Series(0.0, index=annotation.index)
         y1c = position['y'] + scale * annotation['y_min'].values
         y2c = position['y'] + scale * annotation['y_max'].values
+        score = self._score_overlap(y1, y2, y1c, y2c)
+        return pd.Series(score, index=annotation.index)
+
+
+class RegionOccupyRule(RegionTargetRule):
+    """
+    Check that '[y1; y2]' *occupies* given interval.
+
+    score = overlap(position, annotation) / max_range(position, annotation)
+
+    See also:
+    https://bbpteam.epfl.ch/documentation/placement-algorithm-1.1/index.html#region-occupy
+    """
+    @staticmethod
+    def _score_overlap(y1, y2, y1c, y2c):
         y1o = np.maximum(y1, y1c)
         y2o = np.minimum(y2, y2c)
-        score = np.where(
+        return np.where(
             y2o > y1o,
-            (y2o - y1o) / np.minimum(y2 - y1, y2c - y1c),
+            (y2o - y1o) / np.maximum(y2 - y1, y2c - y1c),
             0.0
         )
-        return pd.Series(score, index=annotation.index)
 
 
 def aggregate_strict_score(scores):
