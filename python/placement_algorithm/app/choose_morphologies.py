@@ -148,9 +148,10 @@ class Master(MasterApp):
             default=0
         )
         parser.add_argument(
-            "--allow-na",
-            help="Allow positions with no morphologies assigned (default: %(default)s)",
-            action="store_true"
+            "--max-fail-ratio",
+            help="Max failure ratio for any mtype (default: %(default)s)",
+            type=float,
+            default=0.0
         )
         parser.add_argument(
             "-o", "--output", help="Path to output TSV file", required=True
@@ -234,12 +235,11 @@ class Master(MasterApp):
             LOGGER.info(
                 "Failure ratio by mtypes:\n%s", stats.to_string(float_format="%.1f")
             )
-            if not self.args.allow_na:
+            max_fail_ratio = 0.01 * stats['ratio, %'].max()
+            if max_fail_ratio > self.args.max_fail_ratio:
                 raise RuntimeError("""
-                    Failed to choose morphologies for some positions.
-                    Please re-run with `--allow-na` if it is acceptable.
-                """)
-
+                    Max failure ratio exceeded (%.3f > %.3f)
+                """ % (max_fail_ratio, self.args.max_fail_ratio))
         utils.dump_morphology_list(result, self.args.output)
 
 
