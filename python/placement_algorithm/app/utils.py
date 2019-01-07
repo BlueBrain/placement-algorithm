@@ -142,7 +142,8 @@ class MorphWriter(object):
 
     def __call__(self, morph, seed):
         morph_name, subdirs = self._generate_name(seed)
+        morph_name = os.path.join(subdirs, morph_name)
         for ext in self.file_ext:
-            filepath = os.path.join(self.output_dir, subdirs, "%s.%s" % (morph_name, ext))
+            filepath = os.path.join(self.output_dir, "%s.%s" % (morph_name, ext))
             morph.write(filepath)
         return morph_name
