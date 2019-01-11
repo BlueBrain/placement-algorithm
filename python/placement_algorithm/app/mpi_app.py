@@ -19,6 +19,7 @@ Worker nodes (MPI_RANK > 0):
 """
 
 import abc
+import sys
 
 
 MASTER_RANK = 0
@@ -113,6 +114,13 @@ def run_worker(args, COMM):
         COMM.send((_id, worker(_id)), dest=MASTER_RANK)
 
 
+def _setup_excepthook(COMM):
+    def _mpi_excepthook(*args, **kwargs):
+        sys.__excepthook__(*args, **kwargs)
+        COMM.Abort(1)
+    sys.excepthook = _mpi_excepthook
+
+
 def run(App):
     """ Launch MPI-based Master / Worker application. """
     from mpi4py import MPI  # pylint: disable=import-error
@@ -125,6 +133,9 @@ def run(App):
         )
 
     args = App.parse_args()
+
+    _setup_excepthook(COMM)
+
     if COMM.Get_rank() == MASTER_RANK:
         run_master(App(), args, COMM)
     else:
