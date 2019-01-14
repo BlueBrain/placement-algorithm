@@ -152,60 +152,161 @@ The final score :math:`\hat{S}` is a product of aggregated strict and optional s
 Usage
 =====
 
-|name| is distributed via `BBP Nix packages <https://bbpteam.epfl.ch/project/spaces/display/BBPHPC/Nix+Package+Manager>`_, and is available at BBP systems as ``nix/nse/placement-algorithm`` module.
+|name| is distributed via BBP Spack packages, and is available at BBP systems as |name| module.
 
 .. code-block::console
 
-    $ module load nix/nse/placement-algorithm
+    $ module load placement-algorithm
 
-To ensure the result is reproducible, please consider using some specific `BBP archive S/W release <https://bbpteam.epfl.ch/project/spaces/display/BBPHPC/BBP+ARCHIVE+SOFTWARE+MODULES>`_.
+To pin module version, please consider using some specific `BBP archive S/W release <https://bbpteam.epfl.ch/project/spaces/display/BBPHPC/BBP+ARCHIVE+SOFTWARE+MODULES#BBPARCHIVESOFTWAREMODULES-TousetheSpackarchivemodules>`_.
 
-The main executable provided in the module is ``assign-morphologies``, which is a all-in-one command to:
+This module brings several commands, some of them to be used for circuit building; and others as auxiliary tools for debugging placement algorithm itself.
+We will briefly list them below.
 
- - read `MVD3 <https://bbpteam.epfl.ch/documentation/Circuit%20Documentation-0.0.1/mvd3.html>`_ file with cell positions
- - fetch auxiliary volumetric datasets for an associated atlas
- - for every cell, assign orientation according to 'orientation' atlas dataset
- - if specified by placement rules, apply additional random rotation
- - score each position-morphology combination
- - pick morphologies for every position based on score
- - output the result as a new MVD3
+.. tip::
 
+    Under the hood |name| is a Python package.
+
+    Those willing to experiment with development versions can thus install it from BBP devpi server:
+
+    .. code-block:: console
+
+        $ pip install -i https://bbpteam.epfl.ch/repository/devpi/simple/ placement-algorithm[all]
+
+    Please note though that it requires ``mpi4py`` which can be non-trivial to install.
+
+choose-morphologies
+-------------------
+
+Choose morphologies using the algorithm described above for all positions in a given `MVD3 <https://bbpteam.epfl.ch/documentation/Circuit%20Documentation-0.0.1/mvd3.html>`_ file; and dump output to TSV file like:
+
+::
+
+  0 <morphology-name-1>
+  1 <morphology-name-2>
+
+i.e. zero-based cell ID and chosen morphology per line.
+
+All cell IDs from MVD3 would be listed in the output; those where no morphology can be picked (all candidate morphologies get zero score) would have ``N/A`` for morphology name.
+
+``--max-fail-ratio`` option controls the ratio of ``N/A`` allowed per each mtype.
+If not specified, it defaults to zero (i.e., no ``N/A`` allowed).
 
 Parameters
-----------
+~~~~~~~~~~
 
-    --mvd3         Path to input MVD3 file [required]
-    --morphdb      Path to MorphDB file [required]
-    --atlas        Atlas URL [required]
-    --atlas-cache  Atlas cache folder [optional, default: None]
-    --resolution   position / layer boundaries resolution (um) [optional, default: 10um]
-    --annotations  Path to annotations folder [required]
-    --rules        Path to placement rules file [required]
-    --alpha        [optional, default: 1.0]
-    --seed         Random number generator seed [optional, default: 0]
-    --ntasks       Number of Spark tasks to use for scoring [optional, default: 100]
-    --debug        Dump additional output for debugging [optional]
-    --output       Path to output MVD3 file [required]
+    --mvd3            Path to input MVD3 file [required]
+    --morphdb         Path to MorphDB file [required]
+    --atlas           Atlas URL [required]
+    --atlas-cache     Atlas cache folder [optional, default: None]
+    --annotations     Path to JSON file with compacted annotations [required]
+    --rules           Path to placement rules file [required]
+    --alpha           [optional, default: 1.0]
+    --seed            Random number generator seed [optional, default: 0]
+    --max-fail-ratio  Max failure ratio for any mtype [optional, default: 0]
+    --output          Path to output TSV file [required]
 
-For instance,
 
-.. code-block:: bash
+assign-morphologies
+-------------------
 
-    $ assign-morphologies \
-        --mvd3 circuit.mvd3.metypes \
-        --atlas http://voxels.nexus.apps.bbp.epfl.ch/api/analytics/atlas/releases/7AD3A391-7E14-4250-89AD-51A4F16E0A46/ \
-        --atlas-cache .atlas \
-        --resolution 5 \
-        --morphdb /gpfs/bbp.cscs.ch/project/proj42/entities/bionames/20180410/extNeuronDB.dat \
-        --annotations /gpfs/bbp.cscs.ch/project/proj42/entities/morphologies/20180215/annotations \
-        --rules /gpfs/bbp.cscs.ch/project/proj42/entities/bionames/20180410/placement_rules.xml \
-        --layers SO,SP,SR,SLM \
-        --layer-ratio 170,60,280,150 \
-        --alpha 3.0 \
-        --seed 0
+Write morphologies from TSV list obtained from ``choose-morphologies`` to MVD3.
 
-Under the hood ``assign-morphologies`` is a wrapper Bash script which launches ``spark-submit`` with a specific Python script.
-It's up to the user to ensure that ``spark-submit`` command is available in the environment, and is configured properly.
+Also, assign orientation for each cell position based on atlas orientation field (applying additional random rotation around Y-axis).
+
+By default, no ``N/A`` are allowed in the input TSV list.
+By providing ``--dropna`` flag, user can instruct the command to drop ``N/A`` cells from the resulting MVD3.
+Please note that in this case cells would be re-indexed to preserve continuous range of cell IDs.
+
+Parameters
+~~~~~~~~~~
+
+    --mvd3            Path to input MVD3 file [required]
+    --morph           TSV file with morphology list [required]
+    --atlas           Atlas URL [required]
+    --atlas-cache     Atlas cache folder [optional, default: None]
+    --dropna          Allow ``N/A`` positions in morphology list [optional, default: False]
+    --seed            Random number generator seed [optional, default: 0]
+    --out-mvd3        Path to output MVD3 file [required]
+
+
+dump-profiles
+-------------
+
+Debugging utility.
+
+Query m(e)type and layer profile for a list of GIDs; and output the result in JSON lines format.
+
+Parameters
+~~~~~~~~~~
+
+    --mvd3            Path to input MVD3 file [required]
+    --atlas           Atlas URL [required]
+    --atlas-cache     Atlas cache folder [optional, default: None]
+    --layer-names     Comma-separated layer names [required]
+    --gids            Space-separated list of GID(s) [optional, default: all GIDs]
+
+Example
+~~~~~~~
+
+For instance, a call like:
+
+.. code:: bash
+
+  $ dump-profiles \
+      --mvd3 <MVD3> \
+      --atlas <ATLAS> \
+      --layer-names L1,L2,L3,L4,L5,L6 \
+      --gids 42 52
+
+can give an output like:
+
+::
+
+  {"L1_0": 1257.1, "L1_1": 1380.0, ..., "L6_0": 0.0, "L6_1": 436.6, "y": 1307.5, "mtype": "L1_DAC", "etype": "cNAC", "gid": 42}
+  {"L1_0": 1257.1, "L1_1": 1380.0, ..., "L6_0": 0.0, "L6_1": 436.6, "y": 347.5, "mtype": "L6_UPC", "etype": "cADpyr", "gid": 52}
+  ...
+
+The output can be inspected separately or piped directly to ``score-morphologies`` (see below).
+
+
+score-morphologies
+------------------
+
+Debugging utility.
+
+Show each rule score for given position candidate(s) taken from ``stdin``.
+Each candidate position is a JSON line similar to ``dump-profile`` output.
+
+Parameters
+~~~~~~~~~~
+
+    --morphdb         Path to MorphDB file [required]
+    --annotations     Path to JSON file with compacted annotations [required]
+    --rules           Path to placement rules file [required]
+
+Example
+~~~~~~~
+
+For instance, a call like:
+
+.. code:: bash
+
+  $ score-morphologies \
+      --morphdb <MORPHDB> \
+      --annotations <ANNOTATIONS> \
+      --rules <RULES \
+      < '{"L1_0": 1257.1, "L1_1": 1380.0, ..., "L6_0": 0.0, "L6_1": 436.6, "y": 1307.5, "mtype": "L5_TPC:A", "etype": "cADpyr"}' | column -t
+
+can give an output like:
+
+::
+
+  morphology        L1_hard_limit  L5_TPC:A,dendrite,Layer_1  strict  optional  total
+  morph-1                   0.732                      0.942   0.732   0.942    0.689
+  morph-2 0.688             1.000                      0.688   1.000   0.688    0.688
+
+
 
 Input Data
 ==========
@@ -215,7 +316,7 @@ Input Data
 Atlas
 -----
 
-`assign-morphologies` relies on a set of volumetric datasets being provided by the atlas.
+`choose-morphologies` relies on a set of volumetric datasets being provided by the atlas.
 
 [PH]y
 ~~~~~
@@ -270,6 +371,11 @@ Rule IDs should be unique within mtype rule set, and should not overlap with glo
 Global rotation
 ~~~~~~~~~~~~~~~
 
+.. warning::
+
+  | This functionality is temporarily not available; random rotation around Y-axis is used indiscriminately for all cells.
+  | Please contact NSE team if you need fine control over rotation angles.
+
 Defined in ``<global_rotation>`` element (no attributes), which can appear no more than once in XML file.
 It specifies rotation for *all* the cells, for which there are no mtype-specific rotation rules (see below).
 
@@ -285,6 +391,11 @@ Rotations are applied sequentially as they appear in XML file.
 
 Mtype rotations
 ~~~~~~~~~~~~~~~
+
+.. warning::
+
+  | This functionality is temporarily not available; random rotation around Y-axis is used indiscriminately for all cells.
+  | Please contact NSE team if you need fine control over rotation angles.
 
 Defined in ``<mtype_rotation>`` elements, which can appear multiple times in XML file.
 Each element should have ``mtype`` attribute with the associated mtype (or `|`-separated list of mtypes).
@@ -350,6 +461,41 @@ Example
       <placement rule="axon, Layer_1" y_max="1230.0" y_min="1100.0" />
     </annotations>
 
+For efficiency purpose, when collection of annotation files is used for ``choose-morphologies``, it is packed into a single JSON file with the following command delivered by |name| module:
+
+.. code-block:: bash
+
+    $ compact-annotations -o <OUTPUT> <ANNOTATION_DIR>
+
+The result is a JSON file like:
+
+::
+
+  {
+    "morph-1": {
+      "L1_hard_limit": {
+        "y_max": "96.4037744144",
+        "y_min": "-224.580195025"
+      },
+    },
+    "morph-2": {
+      "L1_hard_limit": {
+        "y_max": "350.432",
+        "y_min": "-183.648"
+      },
+      "L4_UPC, dendrite, Layer_2 - Layer_1": {
+        "y_max": "350.292",
+        "y_min": "228.707"
+      },
+    },
+    ...
+  }
+
+To choose only a subset of morphologies from a given annotation folder, one can provide an optional ``--morphdb`` argument with path to MorphDB file:
+
+.. code-block:: bash
+
+    $ compact-annotations --morphdb <MORPHDB> -o <OUTPUT> <ANNOTATION_DIR>
 
 Acknowledgments
 ===============
