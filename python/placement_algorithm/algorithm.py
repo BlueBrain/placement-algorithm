@@ -92,8 +92,8 @@ class RegionTargetRule(Rule):
 
     @staticmethod
     def _score_overlap(y1, y2, y1c, y2c):
-        y1o = np.maximum(y1, y1c)
-        y2o = np.minimum(y2, y2c)
+        y1o = np.maximum(y1, y1c)  # pylint: disable=assignment-from-no-return
+        y2o = np.minimum(y2, y2c)  # pylint: disable=assignment-from-no-return
         return np.where(
             y2o > y1o,
             (y2o - y1o) / np.minimum(y2 - y1, y2c - y1c),
@@ -122,8 +122,8 @@ class RegionOccupyRule(RegionTargetRule):
     """
     @staticmethod
     def _score_overlap(y1, y2, y1c, y2c):
-        y1o = np.maximum(y1, y1c)
-        y2o = np.minimum(y2, y2c)
+        y1o = np.maximum(y1, y1c)  # pylint: disable=assignment-from-no-return
+        y2o = np.minimum(y2, y2c)  # pylint: disable=assignment-from-no-return
         return np.where(
             y2o > y1o,
             (y2o - y1o) / np.maximum(y2 - y1, y2c - y1c),
