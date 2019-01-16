@@ -117,6 +117,8 @@ def run_worker(args, COMM):
 def _setup_excepthook(COMM):
     def _mpi_excepthook(*args, **kwargs):
         sys.__excepthook__(*args, **kwargs)
+        sys.stdout.flush()
+        sys.stderr.flush()
         COMM.Abort(1)
     sys.excepthook = _mpi_excepthook
 
