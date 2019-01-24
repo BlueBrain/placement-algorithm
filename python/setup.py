@@ -24,7 +24,7 @@ SYNTHESIS_EXTRAS = [
 ]
 
 MPI_EXTRAS = [
-    'mpi4py>=3.0',
+    'mpi4py>=2.0,<3.0',
 ]
 
 setup(
