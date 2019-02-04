@@ -21,8 +21,13 @@ Worker nodes (MPI_RANK > 0):
 import abc
 import sys
 
+import logging
+
 
 MASTER_RANK = 0
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class MasterApp(object):
@@ -111,7 +116,12 @@ def run_worker(args, COMM):
     worker.setup(args)
     task_ids = COMM.recv(source=MASTER_RANK)
     for _id in task_ids:
-        COMM.send((_id, worker(_id)), dest=MASTER_RANK)
+        try:
+            result = worker(_id)
+        except Exception:  # pylint: disable=broad-except
+            LOGGER.error("Task #%d failed", _id)
+            raise
+        COMM.send((_id, result), dest=MASTER_RANK)
 
 
 def _setup_excepthook(COMM):

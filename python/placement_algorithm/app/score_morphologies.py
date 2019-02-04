@@ -8,11 +8,12 @@ from __future__ import print_function
 import sys
 import argparse
 import logging
+import json
 
 import pandas as pd
-import ujson
 
 from placement_algorithm import algorithm, files
+from placement_algorithm.app import utils
 
 
 L = logging.getLogger('score-morphologies')
@@ -77,11 +78,10 @@ def main():
     all_rules = files.PlacementRules(args.rules)
     morphdb = files.parse_morphdb(args.morphdb)
 
-    with open(args.annotations) as f:
-        all_annotations = ujson.load(f)
+    all_annotations = utils.load_json(args.annotations)
 
     for line in sys.stdin:
-        profile = ujson.loads(line)
+        profile = json.loads(line)
         mtype, etype = profile['mtype'], profile.get('etype')
 
         morphologies = _list_morphologies(morphdb, mtype=mtype, etype=etype)

@@ -14,7 +14,6 @@ APP_EXTRAS = [
     'morphio>=2.0',
     'morph-tool>=0.1',
     'tqdm>=4.0',
-    'ujson>=1.0',
     'voxcell>=2.5',
 ]
 

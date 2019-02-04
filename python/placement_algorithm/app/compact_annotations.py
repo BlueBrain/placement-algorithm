@@ -8,7 +8,7 @@ import argparse
 import glob
 import os
 
-import ujson
+import json
 
 from tqdm import tqdm
 
@@ -48,7 +48,7 @@ def main():
     annotations = _collect_annotations(args.annotation_dir, args.morphdb)
 
     with open(args.output, 'w') as f:
-        ujson.dump(annotations, f, indent=2)
+        json.dump(annotations, f, indent=2)
 
 
 if __name__ == '__main__':

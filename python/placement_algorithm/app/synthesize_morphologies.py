@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 import morph_tool.transform as mt
-from morph_tool.graft import find_axon, graft_axon
+from morph_tool.graft import graft_axon
 from morph_tool.loader import MorphLoader
 
 from voxcell import CellCollection
@@ -279,7 +279,7 @@ class Worker(WorkerApp):
         )
         if self.axon_morph_list is not None:
             axon_morph = self._load_morphology(self.axon_morph_list, gid)
-            graft_axon(morph, find_axon(axon_morph))
+            graft_axon(morph, axon_morph)
         return self.morph_writer(morph, seed=seed)
 
 

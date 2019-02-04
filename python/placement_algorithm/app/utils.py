@@ -10,9 +10,9 @@ import numpy as np
 
 def load_json(filepath):
     """ Load JSON file. """
-    import ujson
+    import json
     with open(filepath) as f:
-        return ujson.load(f)
+        return json.load(f)
 
 
 def random_rotation_y(n):
