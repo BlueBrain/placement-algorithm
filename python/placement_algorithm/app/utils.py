@@ -7,7 +7,7 @@ import random
 import uuid
 
 import numpy as np
-
+import pandas as pd
 
 from placement_algorithm.logger import LOGGER
 
@@ -79,7 +79,6 @@ def dump_morphology_list(morph_list, output_path):
 
 def load_morphology_list(filepath, check_gids=None):
     """ Read morphology list from tab-separated file. """
-    import pandas as pd
     result = pd.read_csv(
         filepath, sep=r'\s+', index_col=0, dtype={'morphology': object, 'scale': float}
     )
@@ -88,6 +87,40 @@ def load_morphology_list(filepath, check_gids=None):
         if sorted(result.index) != sorted(check_gids):
             raise RuntimeError("Morphology list GIDs mismatch")
     return result
+
+
+def _failure_ratio_by_mtype(mtypes, na_mask):
+    """ Calculate ratio of N/A occurences per mtype. """
+    failed = mtypes[na_mask].value_counts()
+    overall = mtypes.value_counts()
+    result = pd.DataFrame({
+        'N/A': failed,
+        'out of': overall,
+    }).dropna().astype(int)
+    result['ratio, %'] = 100.0 * result['N/A'] / result['out of']
+    result.sort_values('ratio, %', ascending=False, inplace=True)
+    return result
+
+
+def check_na_morphologies(morph_list, mtypes, threshold=None):
+    """ Check `N/A` ratio per mtype. """
+    na_mask = morph_list.isnull().any(axis=1)
+    if na_mask.any():
+        stats = _failure_ratio_by_mtype(mtypes, na_mask)
+        LOGGER.warn(
+            "N/A morphologies for %d position(s)", np.count_nonzero(na_mask)
+        )
+        LOGGER.info(
+            "N/A ratio by mtypes:\n%s", stats.to_string(float_format="%.1f")
+        )
+        if threshold is not None:
+            exceeded = (0.01 * stats['ratio, %'] > threshold)
+            if exceeded.any():
+                raise RuntimeError(
+                    "Max N/A ratio (%.1f%%) exceeded for mtype(s): %s" % (
+                        100.0 * threshold, ", ".join(exceeded.index)
+                    )
+                )
 
 
 class MorphWriter(object):
@@ -161,3 +194,23 @@ class MorphWriter(object):
             filepath = os.path.join(self.output_dir, "%s.%s" % (morph_name, ext))
             morph.write(filepath)
         return morph_name
+
+
+def assign_morphologies(cells, morphologies):
+    """
+    Assign morphologies to CellCollection.
+
+    Args:
+        cells: CellCollection to be augmented
+        morphologies: dictionary {gid -> morphology_name}
+
+    No return value; `cells` is input/output argument.
+    """
+    cells.properties['morphology'] = pd.Series(morphologies)
+    na_mask = cells.properties['morphology'].isnull()
+    if na_mask.any():
+        LOGGER.info(
+            "Dropping %d cells with no morphologies assigned; reindexing",
+            np.count_nonzero(na_mask)
+        )
+        cells.remove_unassigned_cells()

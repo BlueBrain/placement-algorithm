@@ -81,19 +81,6 @@ def _bind_annotations(annotations, morphdb, rules):
     return result
 
 
-def _failure_ratio_by_mtype(mtypes, na_mask):
-    """ Calculate ratio of N/A occurences per mtype. """
-    failed = mtypes[na_mask].value_counts()
-    overall = mtypes.value_counts()
-    result = pd.DataFrame({
-        'failed': failed,
-        'out of': overall,
-    }).dropna().astype(int)
-    result['ratio, %'] = 100.0 * result['failed'] / result['out of']
-    result.sort_values('ratio, %', ascending=False, inplace=True)
-    return result
-
-
 class Master(MasterApp):
     """ MPI application master task. """
     @staticmethod
@@ -143,12 +130,6 @@ class Master(MasterApp):
             help="Random number generator seed (default: %(default)s)",
             type=int,
             default=0
-        )
-        parser.add_argument(
-            "--max-fail-ratio",
-            help="Max failure ratio for any mtype (default: %(default)s)",
-            type=float,
-            default=0.0
         )
         parser.add_argument(
             "-o", "--output", help="Path to output TSV file", required=True
@@ -216,20 +197,7 @@ class Master(MasterApp):
         else:
             result = pd.DataFrame(result, index=['morphology', 'scale']).transpose()
 
-        na_mask = result.isnull().any(axis=1)
-        if na_mask.any():
-            stats = _failure_ratio_by_mtype(self.cells.properties['mtype'], na_mask)
-            LOGGER.warn(
-                "Failed to choose morphologies for %d position(s)", np.count_nonzero(na_mask)
-            )
-            LOGGER.info(
-                "Failure ratio by mtypes:\n%s", stats.to_string(float_format="%.1f")
-            )
-            max_fail_ratio = 0.01 * stats['ratio, %'].max()
-            if max_fail_ratio > self.args.max_fail_ratio:
-                raise RuntimeError("""
-                    Max failure ratio exceeded (%.3f > %.3f)
-                """ % (max_fail_ratio, self.args.max_fail_ratio))
+        utils.check_na_morphologies(result, mtypes=self.cells.properties['mtype'], threshold=None)
         utils.dump_morphology_list(result, self.args.output)
 
 

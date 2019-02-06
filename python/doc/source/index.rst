@@ -189,9 +189,6 @@ i.e. zero-based cell ID and chosen morphology per line.
 
 All cell IDs from MVD3 would be listed in the output; those where no morphology can be picked (all candidate morphologies get zero score) would have ``N/A`` for morphology name.
 
-``--max-fail-ratio`` option controls the ratio of ``N/A`` allowed per each mtype.
-If not specified, it defaults to zero (i.e., no ``N/A`` allowed).
-
 Parameters
 ~~~~~~~~~~
 
@@ -203,20 +200,21 @@ Parameters
     --rules           Path to placement rules file [required]
     --alpha           [optional, default: 1.0]
     --seed            Random number generator seed [optional, default: 0]
-    --max-fail-ratio  Max failure ratio for any mtype [optional, default: 0]
     --output          Path to output TSV file [required]
 
 
 assign-morphologies
 -------------------
 
-Write morphologies from TSV list obtained from ``choose-morphologies`` to MVD3.
+Write morphologies from TSV list obtained with ``choose-morphologies`` to MVD3.
 
 Also, assign orientation for each cell position based on atlas orientation field (applying additional random rotation around Y-axis).
 
-By default, no ``N/A`` are allowed in the input TSV list.
-By providing ``--dropna`` flag, user can instruct the command to drop ``N/A`` cells from the resulting MVD3.
-Please note that in this case cells would be re-indexed to preserve continuous range of cell IDs.
+``--max-drop-ratio`` option limits the ratio of ``N/A``s per mtype allowed in the input TSV list.
+If for none of the mtypes the ratio of ``N/A``s exceeds this limit, cells with ``N/A`` morphologies are dropped from the resulting MVD3.
+Please note that if at least one cell is dropped, MVD3 would be re-indexed to preserve continuous range of cell IDs.
+If not specified, ``--max-drop-ratio`` defaults to zero (i.e., no ``N/A`` allowed).
+
 
 Parameters
 ~~~~~~~~~~
@@ -225,7 +223,7 @@ Parameters
     --morph           TSV file with morphology list [required]
     --atlas           Atlas URL [required]
     --atlas-cache     Atlas cache folder [optional, default: None]
-    --dropna          Allow ``N/A`` positions in morphology list [optional, default: False]
+    --max-drop-ratio  Max drop ratio for any mtype [optional, default: 0.0]
     --seed            Random number generator seed [optional, default: 0]
     --out-mvd3        Path to output MVD3 file [required]
 

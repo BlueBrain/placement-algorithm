@@ -11,7 +11,6 @@
 import argparse
 
 import numpy as np
-import pandas as pd
 
 import morph_tool.transform as mt
 from morph_tool.graft import graft_axon
@@ -89,6 +88,12 @@ class Master(MasterApp):
             type=int,
             default=None
         )
+        parser.add_argument(
+            "--max-drop-ratio",
+            help="Max drop ratio for any mtype (default: %(default)s)",
+            type=float,
+            default=0.0
+        )
         return parser.parse_args()
 
     def _check_has_mtypes(self, content):
@@ -108,13 +113,12 @@ class Master(MasterApp):
             return
         self._check_has_mtypes(content)
 
-    def _check_morph_list(self, filepath):
+    def _check_morph_list(self, filepath, max_na_ratio):
         """ Check morphology list for N/A morphologies. """
         morph_list = utils.load_morphology_list(filepath, check_gids=self.task_ids)
-        if morph_list['morphology'].isnull().any():
-            raise RuntimeError("""
-                Morphology list has N/A morphologies for some positions.
-            """)
+        utils.check_na_morphologies(
+            morph_list, mtypes=self.cells.properties['mtype'], threshold=max_na_ratio
+        )
 
     def setup(self, args):
         """
@@ -141,7 +145,7 @@ class Master(MasterApp):
         self._check_tmd_parameters(args.tmd_parameters)
         self._check_tmd_distributions(args.tmd_distributions)
         if args.morph_axon is not None:
-            self._check_morph_list(args.morph_axon)
+            self._check_morph_list(args.morph_axon, max_na_ratio=args.max_drop_ratio)
 
         # Fetch required datasets from VoxelBrain if necessary,
         # so that when workers need them, they can get them directly from disk
@@ -169,10 +173,10 @@ class Master(MasterApp):
           - dump CellCollection to MVD3
         """
         LOGGER.info("Assigning CellCollection 'morphology' property...")
-        self.cells.properties['morphology'] = pd.Series(result)
+        utils.assign_morphologies(self.cells, result)
 
         LOGGER.info("Assigning CellCollection 'orientation' property...")
-        # cell orientation is imbued in synthesized morphologies
+        # cell orientations are imbued in synthesized morphologies
         self.cells.orientations = np.broadcast_to(
             np.identity(3), (len(self.cells.positions), 3, 3)
         )
@@ -245,6 +249,8 @@ class Worker(WorkerApp):
             morphio.mut.Morphology instance.
         """
         rec = morph_list.loc[gid]
+        if rec['morphology'] is None:
+            return None
         result = self.morph_cache.get(rec['morphology']).as_mutable()
         transform = np.identity(4)
         transform[:3, :3] = utils.random_rotation_y(n=1)[0]
@@ -265,14 +271,19 @@ class Worker(WorkerApp):
         Returns:
             Generated filename (unique by GID).
         """
+        axon_morph = None
+        if self.axon_morph_list is not None:
+            axon_morph = self._load_morphology(self.axon_morph_list, gid)
+            if axon_morph is None:
+                # no donor axon => drop position
+                return None
         seed = hash((self.seed, gid)) % (1 << 32)
         np.random.seed(seed)
         morph = self._synthesize(
             xyz=self.cells.positions[gid],
             mtype=self.cells.properties['mtype'][gid]
         )
-        if self.axon_morph_list is not None:
-            axon_morph = self._load_morphology(self.axon_morph_list, gid)
+        if axon_morph is not None:
             graft_axon(morph, axon_morph)
         return self.morph_writer(morph, seed=seed)
 

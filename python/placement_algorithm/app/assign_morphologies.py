@@ -45,28 +45,6 @@ def _assign_orientations(cells, atlas):
     )
 
 
-def _assign_morphologies(cells, morphologies, dropna):
-    """
-    Assign morphologies to CellCollection.
-
-    Args:
-        cells: CellCollection to be augmented
-        morphologies: dictionary {gid -> morphology_name}
-        dropna: if True, drop cells with `None` morphology (otherwise: fatal error)
-
-    No return value; `cells` is input/output argument.
-    """
-    cells.properties['morphology'] = pd.Series(morphologies)
-    na_mask = cells.properties['morphology'].isnull()
-    if na_mask.any():
-        assert dropna
-        LOGGER.info(
-            "Dropping %d cells with no morphologies assigned; reindexing",
-            np.count_nonzero(na_mask)
-        )
-        cells.remove_unassigned_cells()
-
-
 class Master(MasterApp):
     """ MPI application master task. """
     @staticmethod
@@ -100,11 +78,6 @@ class Master(MasterApp):
             default=0
         )
         parser.add_argument(
-            "--dropna",
-            help="Drop positions with no morphologies assigned (default: %(default)s)",
-            action="store_true"
-        )
-        parser.add_argument(
             "--instantiate",
             help="Write morphology files (default: %(default)s)",
             action="store_true"
@@ -127,15 +100,24 @@ class Master(MasterApp):
             type=int,
             default=None
         )
+        parser.add_argument(
+            "--max-drop-ratio",
+            help="Max drop ratio for any mtype (default: %(default)s)",
+            type=float,
+            default=0.0
+        )
         return parser.parse_args()
 
-    def _check_morph_list(self, filepath, allow_na):
-        morph_list = utils.load_morphology_list(filepath, check_gids=self.task_ids)
-        if not allow_na and morph_list['morphology'].isnull().any():
-            raise RuntimeError("""
-                Morphology list has N/A morphologies for some positions.
-                Please re-run with `--dropna` if it's OK to drop such positions.
-            """)
+    def _check_morph_lists(self, filepaths, max_na_ratio):
+        morph_list = pd.DataFrame(index=self.task_ids)
+        for name, filepath in filepaths.items():
+            if filepath is not None:
+                morph_list[name] = utils.load_morphology_list(
+                    filepath, check_gids=self.task_ids
+                )['morphology']
+        utils.check_na_morphologies(
+            morph_list, mtypes=self.cells.properties['mtype'], threshold=max_na_ratio
+        )
 
     def setup(self, args):
         """
@@ -148,6 +130,7 @@ class Master(MasterApp):
           - prefetch atlas data
         """
         # pylint: disable=attribute-defined-outside-init
+
         LOGGER.info("Loading CellCollection...")
         self.cells = CellCollection.load_mvd3(args.mvd3)
 
@@ -166,9 +149,9 @@ class Master(MasterApp):
         _assign_orientations(self.cells, atlas)
 
         LOGGER.info("Verifying morphology list(s)...")
-        self._check_morph_list(args.morph, allow_na=args.dropna)
-        if args.morph_axon is not None:
-            self._check_morph_list(args.morph_axon, allow_na=args.dropna)
+        self._check_morph_lists(
+            {'dend': args.morph, 'axon': args.morph_axon}, max_na_ratio=args.max_drop_ratio
+        )
 
         self.args = args
 
@@ -187,7 +170,7 @@ class Master(MasterApp):
           - dump CellCollection to MVD3
         """
         LOGGER.info("Assigning CellCollection 'morphology' property...")
-        _assign_morphologies(self.cells, result, dropna=self.args.dropna)
+        utils.assign_morphologies(self.cells, result)
 
         LOGGER.info("Export to MVD3...")
         self.cells.save_mvd3(self.args.out_mvd3)
