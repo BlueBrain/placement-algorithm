@@ -7,7 +7,6 @@
 
 import argparse
 import itertools
-import logging
 
 import numpy as np
 import pandas as pd
@@ -18,9 +17,7 @@ from voxcell.nexus.voxelbrain import Atlas
 from placement_algorithm import files, algorithm
 from placement_algorithm.app import utils
 from placement_algorithm.app.mpi_app import MasterApp, WorkerApp
-
-
-LOGGER = logging.getLogger('choose-morphologies')
+from placement_algorithm.logger import LOGGER
 
 
 def _fetch_atlas_data(atlas, layer_names, memcache=False):
@@ -158,11 +155,6 @@ class Master(MasterApp):
         )
         return parser.parse_args()
 
-    @property
-    def logger(self):
-        """ Application logger. """
-        return LOGGER
-
     def setup(self, args):
         """
         Initialize master task.
@@ -174,8 +166,6 @@ class Master(MasterApp):
           - prefetch atlas data
         """
         # pylint: disable=attribute-defined-outside-init
-        logging.basicConfig(level=logging.ERROR)
-        LOGGER.setLevel(logging.INFO)
 
         LOGGER.info("Loading CellCollection...")
         self.cells = CellCollection.load_mvd3(args.mvd3)
@@ -298,6 +288,7 @@ class Worker(WorkerApp):
 
 def main():
     """ Application entry point. """
+    utils.setup_logger()
     from placement_algorithm.app.mpi_app import run
     run(Master)
 

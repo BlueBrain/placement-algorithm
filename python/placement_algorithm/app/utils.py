@@ -2,10 +2,24 @@
 Miscellaneous utilities.
 """
 import os
+import logging
 import random
 import uuid
 
 import numpy as np
+
+
+from placement_algorithm.logger import LOGGER
+
+
+def setup_logger():
+    """ Setup application logger. """
+    logging.basicConfig(
+        format="%(asctime)s;%(levelname)s;%(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S",
+        level=logging.ERROR
+    )
+    LOGGER.setLevel(logging.INFO)
 
 
 def load_json(filepath):

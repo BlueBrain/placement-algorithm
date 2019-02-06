@@ -21,13 +21,10 @@ Worker nodes (MPI_RANK > 0):
 import abc
 import sys
 
-import logging
+from placement_algorithm.logger import LOGGER
 
 
 MASTER_RANK = 0
-
-
-LOGGER = logging.getLogger(__name__)
 
 
 class MasterApp(object):
@@ -42,11 +39,6 @@ class MasterApp(object):
         Returns:
             An instance of Worker to be spawned on worker nodes.
         """
-        pass
-
-    @abc.abstractproperty
-    def logger(self):
-        """ Application logger. """
         pass
 
     @abc.abstractmethod
@@ -94,12 +86,12 @@ def run_master(master, args, COMM):
     task_ids = np.random.permutation(master.task_ids)
 
     worker_count = COMM.Get_size() - 1
-    master.logger.info("Distributing %d tasks across %d worker(s)...", len(task_ids), worker_count)
+    LOGGER.info("Distributing %d tasks across %d worker(s)...", len(task_ids), worker_count)
 
     for rank, chunk in enumerate(np.array_split(task_ids, worker_count), 1):
         COMM.send(chunk, dest=rank)
 
-    master.logger.info("Processing tasks...")
+    LOGGER.info("Processing tasks...")
     result = dict([
         COMM.recv()
         for _ in tqdm(range(len(task_ids)))
@@ -107,7 +99,7 @@ def run_master(master, args, COMM):
 
     master.finalize(result)
 
-    master.logger.info("Done!")
+    LOGGER.info("Done!")
 
 
 def run_worker(args, COMM):

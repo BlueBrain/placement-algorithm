@@ -7,16 +7,12 @@ from __future__ import print_function
 
 import sys
 import argparse
-import logging
 import json
 
 import pandas as pd
 
 from placement_algorithm import algorithm, files
 from placement_algorithm.app import utils
-
-
-L = logging.getLogger('score-morphologies')
 
 
 def _list_morphologies(morphdb, mtype, etype=None):
@@ -45,9 +41,7 @@ def _score_morphologies(profile, rules, params, scales=None, segment_type=None):
 
 def main():
     """ Application entry point. """
-
-    logging.basicConfig(level=logging.WARN)
-    L.setLevel(logging.INFO)
+    utils.setup_logger()
 
     parser = argparse.ArgumentParser(
         description="Choose morphology for a given layer profile."

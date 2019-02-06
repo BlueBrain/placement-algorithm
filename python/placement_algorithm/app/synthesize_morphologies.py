@@ -9,7 +9,6 @@
 """
 
 import argparse
-import logging
 
 import numpy as np
 import pandas as pd
@@ -26,9 +25,7 @@ from tns import NeuronGrower  # pylint: disable=import-error
 
 from placement_algorithm.app import utils
 from placement_algorithm.app.mpi_app import MasterApp, WorkerApp
-
-
-LOGGER = logging.getLogger('synthesize-morphologies')
+from placement_algorithm.logger import LOGGER
 
 
 def _fetch_atlas_data(atlas):
@@ -94,11 +91,6 @@ class Master(MasterApp):
         )
         return parser.parse_args()
 
-    @property
-    def logger(self):
-        """ Application logger. """
-        return LOGGER
-
     def _check_has_mtypes(self, content):
         for mtype in self.cells.properties['mtype'].unique():
             if mtype not in content:
@@ -135,10 +127,8 @@ class Master(MasterApp):
           - prefetch atlas data
         """
         # pylint: disable=attribute-defined-outside-init
-        logging.basicConfig(level=logging.ERROR)
-        self.logger.setLevel(logging.INFO)
 
-        self.logger.info("Loading CellCollection...")
+        LOGGER.info("Loading CellCollection...")
         self.cells = CellCollection.load_mvd3(args.mvd3)
 
         LOGGER.info("Preparing morphology output folder...")
@@ -156,7 +146,7 @@ class Master(MasterApp):
         # Fetch required datasets from VoxelBrain if necessary,
         # so that when workers need them, they can get them directly from disk
         # without a risk of race condition for download.
-        self.logger.info("Fetching atlas data...")
+        LOGGER.info("Fetching atlas data...")
         _fetch_atlas_data(
             Atlas.open(args.atlas, cache_dir=args.atlas_cache)
         )
@@ -178,12 +168,16 @@ class Master(MasterApp):
           - assign 'orientation' property to identity matrix
           - dump CellCollection to MVD3
         """
+        LOGGER.info("Assigning CellCollection 'morphology' property...")
         self.cells.properties['morphology'] = pd.Series(result)
+
+        LOGGER.info("Assigning CellCollection 'orientation' property...")
         # cell orientation is imbued in synthesized morphologies
         self.cells.orientations = np.broadcast_to(
             np.identity(3), (len(self.cells.positions), 3, 3)
         )
-        self.logger.info("Export to MVD3...")
+
+        LOGGER.info("Export to MVD3...")
         self.cells.save_mvd3(self.args.out_mvd3)
 
 
@@ -285,6 +279,7 @@ class Worker(WorkerApp):
 
 def main():
     """ Application entry point. """
+    utils.setup_logger()
     from placement_algorithm.app.mpi_app import run
     run(Master)
 
