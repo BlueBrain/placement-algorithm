@@ -3,4 +3,3 @@
 
 class PlacementError(Exception):
     """ Base class for 'placement-algorithm' exceptions. """
-    pass

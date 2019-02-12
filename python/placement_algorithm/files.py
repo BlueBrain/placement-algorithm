@@ -33,7 +33,7 @@ def _parse_rule_set(group):
         if rule_type in DISPATCH_RULES:
             result[rule_id] = DISPATCH_RULES[rule_type].from_xml(elem)
         else:
-            LOGGER.warn("Unknown placement rule type: %s, skipping", rule_type)
+            LOGGER.warning("Unknown placement rule type: %s, skipping", rule_type)
     return result
 
 
@@ -111,7 +111,7 @@ class PlacementRules(object):
                     # temporary fix to suppress excessive warnings with existing annotations
                     pass
                 else:
-                    LOGGER.warn("Unexpected rule ID: '%s' (%s)", rule_id, morph)
+                    LOGGER.warning("Unexpected rule ID: '%s' (%s)", rule_id, morph)
             rule_params[morph] = row
         return (
             rules,

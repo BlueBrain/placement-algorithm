@@ -107,7 +107,7 @@ def check_na_morphologies(morph_list, mtypes, threshold=None):
     na_mask = morph_list.isnull().any(axis=1)
     if na_mask.any():
         stats = _failure_ratio_by_mtype(mtypes, na_mask)
-        LOGGER.warn(
+        LOGGER.warning(
             "N/A morphologies for %d position(s)", np.count_nonzero(na_mask)
         )
         LOGGER.info(

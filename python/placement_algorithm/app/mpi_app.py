@@ -39,7 +39,6 @@ class MasterApp(object):
         Returns:
             An instance of Worker to be spawned on worker nodes.
         """
-        pass
 
     @abc.abstractmethod
     def finalize(self, result):
@@ -49,7 +48,6 @@ class MasterApp(object):
         Args:
             result: {task_id -> *} dictionary (e.g, morphology name per GID)
         """
-        pass
 
 
 class WorkerApp(object):
@@ -59,7 +57,6 @@ class WorkerApp(object):
     @abc.abstractmethod
     def setup(self, args):
         """ Initialize worker task. """
-        pass
 
     @abc.abstractmethod
     def __call__(self):
@@ -69,7 +66,6 @@ class WorkerApp(object):
         Returns:
             (task_id, result) tuple.
         """
-        pass
 
 
 def run_master(master, args, COMM):
@@ -92,10 +88,10 @@ def run_master(master, args, COMM):
         COMM.send(chunk, dest=rank)
 
     LOGGER.info("Processing tasks...")
-    result = dict([
+    result = dict(
         COMM.recv()
         for _ in tqdm(range(len(task_ids)))
-    ])
+    )
 
     master.finalize(result)
 

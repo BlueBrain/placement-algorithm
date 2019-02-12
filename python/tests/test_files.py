@@ -26,7 +26,7 @@ def _test_data_path(filename):
 @patch(test_module.__name__ + ".LOGGER")
 def test_placement_rules_parse(logger):
     rules = test_module.PlacementRules(_test_data_path('rules.xml'))
-    logger.warn.assert_called_once_with(mock.ANY, 'prefer_unscaled')
+    logger.warning.assert_called_once_with(mock.ANY, 'prefer_unscaled')
     nt.assert_equal(
         sorted(rules.common_rules),
         ['L1_axon_hard_limit', 'L1_hard_limit']
@@ -151,7 +151,7 @@ def test_placement_rules_bind(logger):
             ('axon, Layer_1, fill', 'y_min'),
         ]
     )
-    logger.warn.assert_has_calls([
+    logger.warning.assert_has_calls([
         mock.ANY,
         mock.call(mock.ANY, 'axon, Layer_1', 'morph-1'),
     ])

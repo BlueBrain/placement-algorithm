@@ -265,7 +265,7 @@ class Worker(WorkerApp):
         Returns:
             Generated filename (unique by GID).
         """
-        xyz = self.cells.positions[gid],
+        xyz = self.cells.positions[gid]
         mtype = self.cells.properties['mtype'][gid]
         axon_morph, axon_scale = None, None
         if self.axon_morph_list is not None:
