@@ -16,7 +16,7 @@ import morph_tool.transform as mt
 from morph_tool.graft import graft_axon
 from morph_tool.loader import MorphLoader
 
-from voxcell import CellCollection
+from voxcell import CellCollection, OrientationField
 from voxcell.nexus.voxelbrain import Atlas
 
 from region_grower.context import SpaceContext  # pylint: disable=import-error
@@ -203,12 +203,13 @@ class Worker(WorkerApp):
         import morphio
         morphio.set_maximum_warnings(0)  # supress MorphIO warnings on writing files
 
+        atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
+
         self.cells = CellCollection.load_mvd3(args.mvd3)
         self.distributions = utils.load_json(args.tmd_distributions)
         self.parameters = utils.load_json(args.tmd_parameters)
-        self.context = SpaceContext(
-            Atlas.open(args.atlas, cache_dir=args.atlas_cache)
-        )
+        self.context = SpaceContext(atlas)
+        self.orientation = atlas.load_data('orientation', cls=OrientationField)
         self.seed = args.seed
 
         if args.morph_axon is None:
@@ -243,22 +244,15 @@ class Worker(WorkerApp):
         """
         Load morphology corresponding to `gid`.
 
-         - apply random rotation around Y-axis
-
         Returns:
-            morphio.mut.Morphology instance.
+            (<morphio.Morphology>, <scaling factor or `None`>)
         """
         rec = morph_list.loc[gid]
         if rec['morphology'] is None:
-            return None
-        result = self.morph_cache.get(rec['morphology']).as_mutable()
-        transform = np.identity(4)
-        transform[:3, :3] = utils.random_rotation_y(n=1)[0]
-        if 'scale' in rec:
-            transform = np.identity(4)
-            transform[1, :] *= rec['scale']  # scale along Y-axis
-        mt.transform(result, transform)
-        return result
+            return None, None
+        morph = self.morph_cache.get(rec['morphology'])
+        scale = rec.get('scale')
+        return morph, scale
 
     def __call__(self, gid):
         """
@@ -271,19 +265,31 @@ class Worker(WorkerApp):
         Returns:
             Generated filename (unique by GID).
         """
-        axon_morph = None
+        xyz = self.cells.positions[gid],
+        mtype = self.cells.properties['mtype'][gid]
+        axon_morph, axon_scale = None, None
         if self.axon_morph_list is not None:
-            axon_morph = self._load_morphology(self.axon_morph_list, gid)
+            axon_morph, axon_scale = self._load_morphology(self.axon_morph_list, gid)
             if axon_morph is None:
                 # no donor axon => drop position
                 return None
         seed = hash((self.seed, gid)) % (1 << 32)
         np.random.seed(seed)
-        morph = self._synthesize(
-            xyz=self.cells.positions[gid],
-            mtype=self.cells.properties['mtype'][gid]
-        )
+        morph = self._synthesize(xyz=xyz, mtype=mtype)
         if axon_morph is not None:
+            axon_morph = axon_morph.as_mutable()
+            transform = np.identity(4)
+            transform[:3, :3] = np.matmul(
+                self.orientation.lookup(xyz)[0],
+                utils.random_rotation_y(n=1)[0]
+            )
+            if axon_scale is not None:
+                transform = np.matmul(
+                    transform,
+                    np.diag([1., axon_scale, 1., 1.])
+                )
+            # axon: scale -> rotate around Y -> align in orientation field
+            mt.transform(axon_morph, transform)
             graft_axon(morph, axon_morph)
         return self.morph_writer(morph, seed=seed)
 
