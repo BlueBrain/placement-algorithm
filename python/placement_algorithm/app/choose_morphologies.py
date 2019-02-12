@@ -196,6 +196,7 @@ class Master(MasterApp):
             })
         else:
             result = pd.DataFrame(result, index=['morphology', 'scale']).transpose()
+        result.sort_index(inplace=True)
 
         utils.check_na_morphologies(result, mtypes=self.cells.properties['mtype'], threshold=None)
         utils.dump_morphology_list(result, self.args.output)
