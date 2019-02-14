@@ -20,19 +20,10 @@ from voxcell import CellCollection, OrientationField
 from voxcell.nexus.voxelbrain import Atlas
 
 from region_grower.context import SpaceContext  # pylint: disable=import-error
-from tns import NeuronGrower  # pylint: disable=import-error
 
 from placement_algorithm.app import utils
 from placement_algorithm.app.mpi_app import MasterApp, WorkerApp
 from placement_algorithm.logger import LOGGER
-
-
-def _fetch_atlas_data(atlas):
-    """ Fetch required datasets to disk. """
-    atlas.fetch_data('depth')
-    atlas.fetch_data('orientation')
-    for layer in range(1, 7):
-        atlas.fetch_data('thickness:L%d' % layer)
 
 
 class Master(MasterApp):
@@ -96,23 +87,6 @@ class Master(MasterApp):
         )
         return parser.parse_args()
 
-    def _check_has_mtypes(self, content):
-        for mtype in self.cells.properties['mtype'].unique():
-            if mtype not in content:
-                raise RuntimeError("Missing mtype: '%s'" % mtype)
-
-    def _check_tmd_distributions(self, filepath):
-        """ Check if TMD distributions are available for all used mtypes. """
-        content = utils.load_json(filepath)
-        self._check_has_mtypes(content)
-
-    def _check_tmd_parameters(self, filepath):
-        """ Check if TMD parameters are available for all used mtypes. """
-        content = utils.load_json(filepath)
-        if '__default__' in content:
-            return
-        self._check_has_mtypes(content)
-
     def _check_morph_list(self, filepath, max_na_ratio):
         """ Check morphology list for N/A morphologies. """
         morph_list = utils.load_morphology_list(filepath, check_gids=self.task_ids)
@@ -142,18 +116,19 @@ class Master(MasterApp):
             max_files_per_dir=args.max_files_per_dir
         )
 
-        self._check_tmd_parameters(args.tmd_parameters)
-        self._check_tmd_distributions(args.tmd_distributions)
         if args.morph_axon is not None:
             self._check_morph_list(args.morph_axon, max_na_ratio=args.max_drop_ratio)
 
-        # Fetch required datasets from VoxelBrain if necessary,
+        LOGGER.info("Verifying atlas data and synthesis parameters...")
+        # Along the way, this check fetches required datasets from VoxelBrain if necessary,
         # so that when workers need them, they can get them directly from disk
         # without a risk of race condition for download.
-        LOGGER.info("Fetching atlas data...")
-        _fetch_atlas_data(
-            Atlas.open(args.atlas, cache_dir=args.atlas_cache)
-        )
+        atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
+        SpaceContext(
+            atlas=atlas,
+            tmd_distributions_path=args.tmd_distributions,
+            tmd_parameters_path=args.tmd_parameters
+        ).verify(mtypes=self.cells.properties['mtype'].unique())
 
         self.args = args
 
@@ -206,9 +181,11 @@ class Worker(WorkerApp):
         atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
 
         self.cells = CellCollection.load_mvd3(args.mvd3)
-        self.distributions = utils.load_json(args.tmd_distributions)
-        self.parameters = utils.load_json(args.tmd_parameters)
-        self.context = SpaceContext(atlas)
+        self.context = SpaceContext(
+            atlas=atlas,
+            tmd_distributions_path=args.tmd_distributions,
+            tmd_parameters_path=args.tmd_parameters
+        )
         self.orientation = atlas.load_data('orientation', cls=OrientationField)
         self.seed = args.seed
 
@@ -217,28 +194,6 @@ class Worker(WorkerApp):
         else:
             self.axon_morph_list = utils.load_morphology_list(args.morph_axon)
             self.morph_cache = MorphLoader(args.base_morph_dir, file_ext='h5')
-
-    def _get_distributions(self, mtype):
-        return self.distributions[mtype]
-
-    def _get_parameters(self, xyz, mtype):
-        if mtype not in self.parameters:
-            mtype = '__default__'
-        params = self.parameters[mtype]
-        return self.context.get_corrected_params(params, xyz)
-
-    def _synthesize(self, xyz, mtype):
-        """
-        Synthesize soma + dendritic tree.
-
-        Returns:
-            morphio.mut.Morphology instance.
-        """
-        grower = NeuronGrower(
-            input_parameters=self._get_parameters(xyz, mtype),
-            input_distributions=self._get_distributions(mtype)
-        )
-        return grower.grow()
 
     def _load_morphology(self, morph_list, gid):
         """
@@ -275,7 +230,7 @@ class Worker(WorkerApp):
                 return None
         seed = hash((self.seed, gid)) % (1 << 32)
         np.random.seed(seed)
-        morph = self._synthesize(xyz=xyz, mtype=mtype)
+        morph = self.context.synthesize(position=xyz, mtype=mtype)
         if axon_morph is not None:
             axon_morph = axon_morph.as_mutable()
             transform = np.identity(4)
