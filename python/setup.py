@@ -12,13 +12,13 @@ VERSION = imp.load_source("", "placement_algorithm/version.py").__version__
 
 APP_EXTRAS = [
     'morphio>=2.0',
-    'morph-tool>=0.1',
+    'morph-tool>=0.1.3',
     'tqdm>=4.0',
     'voxcell>=2.5',
 ]
 
 SYNTHESIS_EXTRAS = [
-    'region-grower==0.1.0.dev0',
+    'region-grower>=0.1.0',
 ]
 
 MPI_EXTRAS = [
