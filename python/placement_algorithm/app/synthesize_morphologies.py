@@ -239,10 +239,7 @@ class Worker(WorkerApp):
                 utils.random_rotation_y(n=1)[0]
             )
             if axon_scale is not None:
-                transform = np.matmul(
-                    transform,
-                    np.diag([1., axon_scale, 1., 1.])
-                )
+                transform = axon_scale * transform
             # axon: scale -> rotate around Y -> align in orientation field
             mt.transform(axon_morph, transform)
             graft_axon(morph, axon_morph)

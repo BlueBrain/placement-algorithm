@@ -212,8 +212,7 @@ class Worker(WorkerApp):
             return None
         result = self.morph_cache.get(rec['morphology']).as_mutable()
         if 'scale' in rec:
-            transform = np.identity(4)
-            transform[1, :] *= rec['scale']  # scale along Y-axis
+            transform = rec['scale'] * np.identity(4)
             mt.transform(result, transform)
         return result
 
