@@ -118,7 +118,7 @@ def check_na_morphologies(morph_list, mtypes, threshold=None):
             if exceeded.any():
                 raise RuntimeError(
                     "Max N/A ratio (%.1f%%) exceeded for mtype(s): %s" % (
-                        100.0 * threshold, ", ".join(exceeded.index)
+                        100.0 * threshold, ", ".join(exceeded[exceeded].index)
                     )
                 )
 
