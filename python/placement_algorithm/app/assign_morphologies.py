@@ -101,6 +101,11 @@ class Master(MasterApp):
             default=None
         )
         parser.add_argument(
+            "--overwrite",
+            help="Overwrite output morphology folder (default: %(default)s)",
+            action="store_true"
+        )
+        parser.add_argument(
             "--max-drop-ratio",
             help="Max drop ratio for any mtype (default: %(default)s)",
             type=float,
@@ -139,7 +144,8 @@ class Master(MasterApp):
             morph_writer = utils.MorphWriter(args.out_morph_dir, args.out_morph_ext)
             morph_writer.prepare(
                 num_files=len(self.cells.positions),
-                max_files_per_dir=args.max_files_per_dir
+                max_files_per_dir=args.max_files_per_dir,
+                overwrite=args.overwrite
             )
         else:
             morph_writer = None
