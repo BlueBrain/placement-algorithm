@@ -9,6 +9,8 @@ import uuid
 import numpy as np
 import pandas as pd
 
+import morphio
+
 from placement_algorithm.logger import LOGGER
 
 
@@ -191,6 +193,10 @@ class MorphWriter(object):
     def __call__(self, morph, seed):
         morph_name, subdirs = self._generate_name(seed)
         morph_name = os.path.join(subdirs, morph_name)
+        # TODO: pass nrn_order option directly to .write()
+        morph = morphio.mut.Morphology(  # pylint: disable=no-member
+            morph, options=morphio.Option.nrn_order
+        )
         for ext in self.file_ext:
             filepath = os.path.join(self.output_dir, "%s.%s" % (morph_name, ext))
             morph.write(filepath)
