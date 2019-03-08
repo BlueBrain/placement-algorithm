@@ -150,6 +150,8 @@ class Master(MasterApp):
         else:
             morph_writer = None
 
+        np.random.seed(args.seed)
+
         LOGGER.info("Assigning CellCollection 'orientation' property...")
         atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
         _assign_orientations(self.cells, atlas)

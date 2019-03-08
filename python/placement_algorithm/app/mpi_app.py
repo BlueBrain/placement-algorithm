@@ -79,6 +79,8 @@ def run_master(master, args, COMM):
 
     # Some tasks take longer to process than the others.
     # Distribute them randomly across workers to amortize that.
+    # NB: task workers should take into account that task IDs are shuffled;
+    # and ensure reproducibility themselves.
     task_ids = np.random.permutation(master.task_ids)
 
     worker_count = COMM.Get_size() - 1
