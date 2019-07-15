@@ -15,11 +15,13 @@ from placement_algorithm import algorithm, files
 from placement_algorithm.app import utils
 
 
-def _list_morphologies(morphdb, mtype, etype=None):
+def _list_morphologies(morphdb, mtype, etype=None, layer=None):
     # pylint: disable=unused-argument
     query = 'mtype == @mtype'
     if ('etype' in morphdb) and (etype is not None):
         query += ' and etype == @etype'
+    if ('layer' in morphdb) and (layer is not None):
+        query += ' and layer == @layer'
     return morphdb.query(query)['morphology'].unique()
 
 
@@ -76,9 +78,9 @@ def main():
 
     for line in sys.stdin:
         profile = json.loads(line)
-        mtype, etype = profile['mtype'], profile.get('etype')
+        mtype, etype, layer = profile['mtype'], profile.get('etype'), profile.get('layer')
 
-        morphologies = _list_morphologies(morphdb, mtype=mtype, etype=etype)
+        morphologies = _list_morphologies(morphdb, mtype=mtype, etype=etype, layer=layer)
         if len(morphologies) < 1:
             raise RuntimeError("No morphologies found for %s" % profile)
 
