@@ -8,8 +8,6 @@ Module encapsulating placement algorithm per se:
 import numpy as np
 import pandas as pd
 
-from six import iteritems
-
 
 def y_absolute(y_rel, position):
     """ Given position layer profile, convert (layer, fraction) pair to absolute Y value. """
@@ -199,7 +197,7 @@ def score_morphologies(position, rules, params, scale=1.0, segment_type=None):
     """
     result = pd.DataFrame(index=params.index)
     strict, optional = [], []
-    for rule_id, rule in iteritems(rules):
+    for rule_id, rule in rules.items():
         if (segment_type is not None) and (rule.segment_type != segment_type):
             continue
         annotation = params[rule_id].dropna()

@@ -9,8 +9,6 @@ import lxml.etree
 import numpy as np
 import pandas as pd
 
-from six import iteritems
-
 from placement_algorithm.algorithm import BelowRule, RegionTargetRule, RegionOccupyRule
 from placement_algorithm.exceptions import PlacementError
 from placement_algorithm.logger import LOGGER
@@ -95,15 +93,15 @@ class PlacementRules(object):
         """
         rules = self.mtype_rules.get(mtype, self.common_rules)
         rule_params = {}
-        for morph, annotation in iteritems(annotations):
+        for morph, annotation in annotations.items():
             row = {
                 (rule_id, param): np.nan
-                for rule_id, rule in iteritems(rules)
+                for rule_id, rule in rules.items()
                 for param in rule.ANNOTATION_PARAMS
             }
-            for rule_id, params in iteritems(annotation):
+            for rule_id, params in annotation.items():
                 if rule_id in rules:
-                    for param, value in iteritems(params):
+                    for param, value in params.items():
                         if (rule_id, param) not in row:
                             continue
                         row[(rule_id, param)] = float(value)

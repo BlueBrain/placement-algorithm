@@ -1,10 +1,12 @@
 """
 Miscellaneous utilities.
 """
+import json
 import os
 import logging
 import random
 import uuid
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -26,7 +28,6 @@ def setup_logger():
 
 def load_json(filepath):
     """ Load JSON file. """
-    import json
     with open(filepath) as f:
         return json.load(f)
 
@@ -190,17 +191,21 @@ class MorphWriter(object):
                 subdirs = os.path.join(subdirs, sub)
         return morph_name, subdirs
 
-    def __call__(self, morph, seed):
+    def filepaths(self, seed):
+        '''Returns the paths to the morphology'''
         morph_name, subdirs = self._generate_name(seed)
-        morph_name = os.path.join(subdirs, morph_name)
+        return [Path(self.output_dir, subdirs, "%s.%s" % (morph_name, ext))
+                for ext in self.file_ext]
+
+    def __call__(self, morph, seed):
         # TODO: pass nrn_order option directly to .write()
         morph = morphio.mut.Morphology(  # pylint: disable=no-member
             morph, options=morphio.Option.nrn_order
         )
-        for ext in self.file_ext:
-            filepath = os.path.join(self.output_dir, "%s.%s" % (morph_name, ext))
-            morph.write(filepath)
-        return morph_name
+        paths = self.filepaths(seed)
+        for path in paths:
+            morph.write(path)
+        return paths[0].stem
 
 
 def assign_morphologies(cells, morphologies):

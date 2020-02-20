@@ -9,7 +9,6 @@ import sys
 sys.modules['mpi4py'] = Mock()
 
 
-
 @patch('mpi4py.MPI.COMM_WORLD')
 def test_run_master(COMM):
     master = Mock()
@@ -48,5 +47,5 @@ def test_run_invalid_allocation(COMM):
     COMM.Get_size.return_value = 1
     nt.assert_raises(
         RuntimeError,
-        test_module.run, mock.ANY
+        test_module.run, mock.MagicMock()
     )

@@ -125,6 +125,12 @@ def _setup_excepthook(COMM):
 
 def run(App):
     """ Launch MPI-based Master / Worker application. """
+    args = App.parse_args()
+    _run(App, args)
+
+
+def _run(App, args):
+    """ Launch MPI-based Master / Worker application. """
     from mpi4py import MPI  # pylint: disable=import-error
 
     COMM = MPI.COMM_WORLD
@@ -133,8 +139,6 @@ def run(App):
             "MPI environment should contain at least two nodes;\n"
             "rank 0 serves as the coordinator, rank N > 0 -- as task workers.\n"
         )
-
-    args = App.parse_args()
 
     _setup_excepthook(COMM)
 

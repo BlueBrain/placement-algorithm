@@ -9,21 +9,33 @@
 """
 
 import argparse
+import json
+from typing import Dict
 
+import attr
 import numpy as np
-
-import morph_tool.transform as mt
-from morph_tool.graft import graft_axon
-from morph_tool.loader import MorphLoader
 
 from voxcell import CellCollection, OrientationField
 from voxcell.nexus.voxelbrain import Atlas
-
-from region_grower.context import SpaceContext  # pylint: disable=import-error
+from region_grower.context import SpaceContext
+import morph_tool.transform as mt
+from morph_tool.graft import graft_axon
+from morph_tool.loader import MorphLoader
+from morph_tool.nrnhines import point_to_section_end
 
 from placement_algorithm.app import utils
 from placement_algorithm.app.mpi_app import MasterApp, WorkerApp
 from placement_algorithm.logger import LOGGER
+
+
+@attr.s
+class WorkerResult:
+    '''The container class for that has to be the returned type of Worker.__call__'''
+    #: The morphology name
+    name = attr.ib(type=str)
+
+    #: The list of apical section IDs
+    apical_section_ids = attr.ib(type=[])
 
 
 class Master(MasterApp):
@@ -63,6 +75,9 @@ class Master(MasterApp):
         )
         parser.add_argument(
             "--out-mvd3", help="Path to output MVD3 file", required=True
+        )
+        parser.add_argument(
+            "--out-apical", help="Path to output JSON apical file", required=True
         )
         parser.add_argument(
             "--out-morph-dir", help="Path to output morphology folder", default=None
@@ -145,16 +160,21 @@ class Master(MasterApp):
         """ Task IDs (= CellCollection IDs). """
         return self.cells.properties.index.values
 
-    def finalize(self, result):
+    def finalize(self, result: Dict[int, WorkerResult]):
         """
         Finalize master work.
 
           - assign 'morphology' property based on workers' result
           - assign 'orientation' property to identity matrix
           - dump CellCollection to MVD3
+
+        Args:
+            result: A dict {gid -> WorkerResult}
         """
         LOGGER.info("Assigning CellCollection 'morphology' property...")
-        utils.assign_morphologies(self.cells, result)
+
+        utils.assign_morphologies(self.cells,
+                                  {gid: result.name for gid, result in result.items()})
 
         LOGGER.info("Assigning CellCollection 'orientation' property...")
         # cell orientations are imbued in synthesized morphologies
@@ -164,6 +184,10 @@ class Master(MasterApp):
 
         LOGGER.info("Export to MVD3...")
         self.cells.save_mvd3(self.args.out_mvd3)
+
+        with open(self.args.out_apical, 'w') as apical_file:
+            json.dump({result.name: result.apical_section_ids[0] for result in result.values()},
+                      apical_file)
 
 
 class Worker(WorkerApp):
@@ -222,9 +246,10 @@ class Worker(WorkerApp):
           - launch NeuronGrower to synthesize soma and dendrites
           - load axon morphology, if needed, and do axon grafting
           - export result to file
+          - find the NRN section ID of the apical point
 
         Returns:
-            Generated filename (unique by GID).
+            A WorkerResult object
         """
         xyz = self.cells.positions[gid]
         mtype = self.cells.properties['mtype'][gid]
@@ -236,7 +261,7 @@ class Worker(WorkerApp):
                 return None
         seed = hash((self.seed, gid)) % (1 << 32)
         np.random.seed(seed)
-        morph, _ = self.context.synthesize(position=xyz, mtype=mtype)
+        result = self.context.synthesize(position=xyz, mtype=mtype)
         if axon_morph is not None:
             axon_morph = axon_morph.as_mutable()
             transform = np.identity(4)
@@ -248,8 +273,18 @@ class Worker(WorkerApp):
                 transform = axon_scale * transform
             # axon: scale -> rotate around Y -> align in orientation field
             mt.transform(axon_morph, transform)
-            graft_axon(morph, axon_morph)
-        return self.morph_writer(morph, seed=seed)
+            graft_axon(result.neuron, axon_morph)
+
+        morph_name = self.morph_writer(result.neuron, seed=seed)
+
+        path = self.morph_writer.filepaths(seed=seed)[0]
+        if result.apical_points:
+            apical_section_ids = [point_to_section_end(path, point)
+                                  for point in result.apical_points]
+        else:
+            apical_section_ids = None
+
+        return WorkerResult(morph_name, apical_section_ids)
 
 
 def main():

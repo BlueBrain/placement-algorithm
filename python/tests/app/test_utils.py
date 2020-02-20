@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+from pathlib import Path
 
 import mock
 import nose.tools as nt
@@ -291,6 +292,6 @@ class TestMorphWriter(object):
         self.test_obj('morph-obj', 42)
         morph_cls.assert_has_calls([
             mock.call('morph-obj', options=morphio.Option.nrn_order),
-            mock.call().write('/root/hashed/bd/d6/bdd640fb06671ad11c80317fa3b1799d.asc'),
-            mock.call().write('/root/hashed/bd/d6/bdd640fb06671ad11c80317fa3b1799d.swc'),
+            mock.call().write(Path('/root/hashed/bd/d6/bdd640fb06671ad11c80317fa3b1799d.asc')),
+            mock.call().write(Path('/root/hashed/bd/d6/bdd640fb06671ad11c80317fa3b1799d.swc')),
         ])
