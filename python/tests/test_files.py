@@ -1,20 +1,15 @@
 import os
 
 import lxml.etree
-import numpy as np
-import pandas as pd
-
 import mock
 import nose.tools as nt
-import numpy.testing as npt
-import pandas.util.testing as pdt
-
-from mock import patch, Mock
-
-from placement_algorithm.exceptions import PlacementError
+import numpy as np
+import pandas as pd
+from mock import patch
+from pandas.testing import assert_frame_equal
 
 import placement_algorithm.files as test_module
-
+from placement_algorithm.exceptions import PlacementError
 
 TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
@@ -127,7 +122,7 @@ def test_placement_rules_bind(logger):
         sorted(mtype_rules.keys()),
         ['L1_axon_hard_limit', 'L1_hard_limit']
     )
-    pdt.assert_frame_equal(params, expected)
+    assert_frame_equal(params, expected)
     mtype_rules, params = rules.bind(annotations, 'L1_SAC')
     nt.assert_equal(
         sorted(mtype_rules.keys()),
@@ -196,4 +191,4 @@ def test_parse_morphdb():
         ],
         columns=['morphology', 'layer', 'mtype', 'etype']
     )
-    pdt.assert_frame_equal(actual, expected)
+    assert_frame_equal(actual, expected)

@@ -7,7 +7,7 @@ import nose.tools as nt
 import numpy as np
 import numpy.testing as npt
 import pandas as pd
-import pandas.util.testing as pdt
+from pandas.testing import assert_frame_equal
 
 from contextlib import contextmanager
 from mock import patch, Mock
@@ -114,7 +114,7 @@ def test_dump_morphology_list():
     with tempcwd():
         test_module.dump_morphology_list(original, 'morph_list.tsv')
         loaded = pd.read_csv('morph_list.tsv', sep=r'\s+', dtype=str, na_filter=False)
-    pdt.assert_frame_equal(loaded, expected, check_like=True)
+    assert_frame_equal(loaded, expected, check_like=True)
 
 
 def test_dump_load_morphology_list_1():
@@ -125,7 +125,7 @@ def test_dump_load_morphology_list_1():
     with tempcwd():
         test_module.dump_morphology_list(original, 'morph_list.tsv')
         loaded = test_module.load_morphology_list('morph_list.tsv')
-    pdt.assert_frame_equal(original, loaded, check_like=True)
+    assert_frame_equal(original, loaded, check_like=True)
 
 
 def test_dump_load_morphology_list_2():
@@ -135,7 +135,7 @@ def test_dump_load_morphology_list_2():
     with tempcwd():
         test_module.dump_morphology_list(original, 'morph_list.tsv')
         loaded = test_module.load_morphology_list('morph_list.tsv', check_gids=[0, 2, 1])
-    pdt.assert_frame_equal(loaded, original, check_like=True)
+    assert_frame_equal(loaded, original, check_like=True)
 
 
 def test_dump_load_morphology_list_3():
@@ -184,7 +184,7 @@ def test_assign_morphologies():
         0: None,  # to be dropped
     }
     test_module.assign_morphologies(cells, morphologies)
-    pdt.assert_frame_equal(
+    assert_frame_equal(
         cells.properties,
         pd.DataFrame({
             'name': ['B', 'C', 'D'],

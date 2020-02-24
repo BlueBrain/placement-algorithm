@@ -1,0 +1,53 @@
+{
+    "L2_TPC": {
+        "basal": {
+            "randomness": 0.15,
+            "targeting": 0.12,
+            "radius": 0.3,
+            "orientation": null,
+            "growth_method": "tmd",
+            "branching_method": "bio_oriented",
+            "modify": null,
+            "step_size": {
+                "norm": {
+                    "mean": 1.0,
+                    "std": 0.2
+                }
+            },
+            "metric": "path_distances",
+            "tree_type": 3
+        },
+        "apical": {
+            "randomness": 0.15,
+            "targeting": 0.12,
+            "radius": 0.3,
+            "orientation": [
+                [
+                    0.0,
+                    1.0,
+                    0.0
+                ]
+            ],
+            "growth_method": "tmd_apical",
+            "branching_method": "directional",
+            "modify": null,
+            "step_size": {
+                "norm": {
+                    "mean": 1.0,
+                    "std": 0.2
+                }
+            },
+            "metric": "path_distances",
+            "tree_type": 4
+        },
+        "axon": {},
+        "origin": "data_test/L2_TPC:A",
+        "grow_types": [
+            "basal",
+            "apical"
+        ],
+        "diameter_params": {
+            "method": "default"
+        }
+    }
+}

@@ -4,7 +4,8 @@ import pandas as pd
 import mock
 import nose.tools as nt
 import numpy.testing as npt
-import pandas.util.testing as pdt
+from pandas.testing import assert_frame_equal, assert_series_equal
+
 
 import placement_algorithm.algorithm as test_module
 
@@ -45,7 +46,7 @@ def test_below_rule():
     annotations = pd.DataFrame({
         'y_max': [71.0, 55.0, 39.0],
     }, index=list('abc'))
-    pdt.assert_series_equal(
+    assert_series_equal(
         rule(position, annotations),
         pd.Series([0.0, 0.5, 1.0], index=annotations.index)
     )
@@ -76,7 +77,7 @@ def test_region_target_rule_1():
         'y_min': [-4.0, -2.0, 2.0],
         'y_max': [-2.0,  2.0, 3.0],
     }, index=list('abc'))
-    pdt.assert_series_equal(
+    assert_series_equal(
         rule(position, annotations),
         pd.Series([0.0, 0.5, 1.0], index=annotations.index)
     )
@@ -91,7 +92,7 @@ def test_region_target_rule_2():
         'y_min': [-4.0, -2.0, 2.0],
         'y_max': [-2.0,  2.0, 3.0],
     }, index=list('abc'))
-    pdt.assert_series_equal(
+    assert_series_equal(
         rule(position, annotations),
         pd.Series(0.0, index=annotations.index)
     )
@@ -106,7 +107,7 @@ def test_region_occupy_rule_1():
         'y_min': [-4.0, -2.0, 2.0],
         'y_max': [-2.0,  2.0, 3.0],
     }, index=list('abc'))
-    pdt.assert_series_equal(
+    assert_series_equal(
         rule(position, annotations),
         pd.Series([0.0, 0.4, 0.2], index=annotations.index)
     )
@@ -118,7 +119,7 @@ def test_aggregate_strict_score():
         [   0.1, np.nan],
         [np.nan, np.nan],
     ], index=list('abc'))
-    pdt.assert_series_equal(
+    assert_series_equal(
         test_module.aggregate_strict_score(scores),
         pd.Series([0.2, 0.1, 1.0], index=scores.index)
     )
@@ -126,7 +127,7 @@ def test_aggregate_strict_score():
 
 def test_aggregate_strict_score_empty():
     scores = pd.DataFrame(index=list('ab'))
-    pdt.assert_series_equal(
+    assert_series_equal(
         test_module.aggregate_strict_score(scores),
         pd.Series([1.0, 1.0], index=scores.index)
     )
@@ -140,7 +141,7 @@ def test_aggregate_optional_score():
         [0.5,   1e-6],
         [np.nan, np.nan],
     ], index=list('abcde'))
-    pdt.assert_series_equal(
+    assert_series_equal(
         test_module.aggregate_optional_score(scores),
         pd.Series([0.666667, 0.5, 0.0, 0.0, 1.0], index=scores.index)
     )
@@ -148,7 +149,7 @@ def test_aggregate_optional_score():
 
 def test_aggregate_optional_score_empty():
     scores = pd.DataFrame(index=list('ab'))
-    pdt.assert_series_equal(
+    assert_series_equal(
         test_module.aggregate_optional_score(scores),
         pd.Series([1.0, 1.0], index=scores.index)
     )
@@ -202,7 +203,7 @@ def test_score_morphologies_1():
         index=['morph-1', 'morph-2'],
         columns=['rule-A', 'rule-B', 'rule-C', 'rule-D', 'strict', 'optional', 'total']
     )
-    pdt.assert_frame_equal(actual, expected, check_like=True)
+    assert_frame_equal(actual, expected, check_like=True)
 
 
 def test_score_morphologies_2():
@@ -246,7 +247,7 @@ def test_score_morphologies_2():
         index=['morph-1', 'morph-2'],
         columns=['rule-B', 'rule-D', 'strict', 'optional', 'total']
     )
-    pdt.assert_frame_equal(actual, expected, check_like=True)
+    assert_frame_equal(actual, expected, check_like=True)
 
 
 @mock.patch('numpy.random')

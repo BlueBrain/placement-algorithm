@@ -236,7 +236,7 @@ class Worker(WorkerApp):
                 return None
         seed = hash((self.seed, gid)) % (1 << 32)
         np.random.seed(seed)
-        morph = self.context.synthesize(position=xyz, mtype=mtype)
+        morph, _ = self.context.synthesize(position=xyz, mtype=mtype)
         if axon_morph is not None:
             axon_morph = axon_morph.as_mutable()
             transform = np.identity(4)
@@ -253,7 +253,7 @@ class Worker(WorkerApp):
 
 
 def main():
-    """ Application entry point. """
+    """Application entry point."""
     utils.setup_logger()
     from placement_algorithm.app.mpi_app import run
     run(Master)
