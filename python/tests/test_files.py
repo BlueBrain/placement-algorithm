@@ -117,22 +117,15 @@ def test_placement_rules_bind(logger):
     expected = pd.DataFrame(
         [
             [np.nan, np.nan],
-            [np.nan, 22.0],
+            [22.0, np.nan],
         ],
         index=['morph-1', 'morph-2'],
-        columns=[['L1_axon_hard_limit', 'L1_hard_limit'], ['y_max', 'y_max']]
+        columns=[['L1_hard_limit', 'L1_axon_hard_limit'], ['y_max', 'y_max']]
     )
     mtype_rules, params = rules.bind(annotations, 'undefined-mtype')
     nt.assert_equal(
         sorted(mtype_rules.keys()),
         ['L1_axon_hard_limit', 'L1_hard_limit']
-    )
-    nt.assert_equal(
-        sorted(params.columns),
-        [
-            ('L1_axon_hard_limit', 'y_max'),
-            ('L1_hard_limit', 'y_max'),
-        ]
     )
     pdt.assert_frame_equal(params, expected)
     mtype_rules, params = rules.bind(annotations, 'L1_SAC')
