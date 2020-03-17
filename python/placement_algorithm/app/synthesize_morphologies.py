@@ -21,7 +21,7 @@ from region_grower.context import SpaceContext
 import morph_tool.transform as mt
 from morph_tool.graft import graft_axon
 from morph_tool.loader import MorphLoader
-from morph_tool.nrnhines import point_to_section_end
+from morph_tool.nrnhines import point_to_section_end, get_NRN_cell
 
 from placement_algorithm.app import utils
 from placement_algorithm.app.mpi_app import MasterApp, WorkerApp
@@ -84,9 +84,9 @@ class Master(MasterApp):
         )
         parser.add_argument(
             "--out-morph-ext",
-            choices=['h5', 'swc', 'asc'], nargs='+',
+            choices=['swc', 'asc'], nargs='+',
             help="Morphology export format(s)",
-            default=['h5']
+            default=['swc']
         )
         parser.add_argument(
             "--max-files-per-dir",
@@ -186,8 +186,11 @@ class Master(MasterApp):
         self.cells.save_mvd3(self.args.out_mvd3)
 
         with open(self.args.out_apical, 'w') as apical_file:
-            json.dump({result.name: result.apical_section_ids[0] for result in result.values()},
-                      apical_file)
+            apical_dict = {
+                result.name: result.apical_section_ids[0] if result.apical_section_ids else None
+                for result in result.values()
+            }
+            json.dump(apical_dict, apical_file)
 
 
 class Worker(WorkerApp):
@@ -278,9 +281,11 @@ class Worker(WorkerApp):
         morph_name = self.morph_writer(result.neuron, seed=seed)
 
         path = self.morph_writer.filepaths(seed=seed)[0]
-        if result.apical_points:
-            apical_section_ids = [point_to_section_end(path, point)
-                                  for point in result.apical_points]
+        if any(point is not None for point in result.apical_points):
+            cell = get_NRN_cell(path)
+            apical_section_ids = [point_to_section_end(cell.icell.apical, point)
+                                  for point in result.apical_points
+                                  if point is not None]
         else:
             apical_section_ids = None
 

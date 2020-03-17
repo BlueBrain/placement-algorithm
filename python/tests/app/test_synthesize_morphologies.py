@@ -25,8 +25,6 @@ DATA = Path(PATH, '../../../tests/data').resolve()
        MagicMock(return_value=AtlasMock()))
 @patch('placement_algorithm.app.synthesize_morphologies.CellCollection.load_mvd3',
        MagicMock(return_value=CellCollectionMock()))
-@patch('placement_algorithm.app.synthesize_morphologies.point_to_section_end',
-       MagicMock(return_value=10))
 def run_mpi():
     tmp_folder = Path('/tmp/test-run-synthesis')
 
@@ -38,7 +36,7 @@ def run_mpi():
     args.num_files = 12
     args.max_files_per_dir = 256
     args.overwrite = True
-    args.out_morph_ext = ['h5', 'swc', 'asc']
+    args.out_morph_ext = ['swc', 'asc']
     args.out_morph_dir = tmp_folder
     args.out_apical = tmp_folder / 'apical.json'
 
@@ -52,7 +50,7 @@ def run_mpi():
 
     try:
         _run(test_module.Master, args)
-        assert_equal(len(list(iter_morphology_files(tmp_folder))), 36)
+        assert_equal(len(list(iter_morphology_files(tmp_folder))), 24)
         ok_(args.out_apical.exists())
     finally:
         shutil.rmtree(tmp_folder)

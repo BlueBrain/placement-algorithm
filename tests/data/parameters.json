@@ -18,6 +18,7 @@
             "tree_type": 3
         },
         "apical": {
+            "has_apical_tuft": true,
             "randomness": 0.15,
             "targeting": 0.12,
             "radius": 0.3,
