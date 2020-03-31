@@ -10,7 +10,8 @@
 
 import argparse
 import json
-from typing import Dict
+from typing import Dict, Optional
+from morphio.mut import Morphology
 
 import attr
 import numpy as np
@@ -22,10 +23,28 @@ import morph_tool.transform as mt
 from morph_tool.graft import graft_axon
 from morph_tool.loader import MorphLoader
 from morph_tool.nrnhines import point_to_section_end, get_NRN_cell
+from tns import TNSError
 
 from placement_algorithm.app import utils
+from placement_algorithm.exceptions import SkipSynthesisError
 from placement_algorithm.app.mpi_app import MasterApp, WorkerApp
 from placement_algorithm.logger import LOGGER
+
+
+def get_NEURON_apical_sections(path: str, point_list):
+    '''Returns the NEURON section indices (relative to the first apical section) of sections
+    ending at positions specified in point_list
+
+    Args:
+        path: a neuron path
+        point_list: a list of point coordinates
+    '''
+    points = [point for point in point_list if point is not None]
+    if not points:
+        return None
+
+    cell = get_NRN_cell(path)
+    return [point_to_section_end(cell.icell.apical, point) for point in points]
 
 
 @attr.s
@@ -84,7 +103,7 @@ class Master(MasterApp):
         )
         parser.add_argument(
             "--out-morph-ext",
-            choices=['swc', 'asc'], nargs='+',
+            choices=['swc', 'asc', 'h5'], nargs='+',
             help="Morphology export format(s)",
             default=['swc']
         )
@@ -125,6 +144,18 @@ class Master(MasterApp):
           - prefetch atlas data
         """
         # pylint: disable=attribute-defined-outside-init
+        if len(args.out_morph_ext) == 1 and args.out_morph_ext[0].lower() == 'h5':
+            raise Exception('Cannot synthesize only to H5 format, '
+                            'add another value for the option --out-morph-ext\n'
+                            'See also:\n'
+                            'https://bbpteam.epfl.ch/project/issues/browse/BBPP82-13?'
+                            'focusedCommentId=111273&page=com.atlassian.jira.plugin.system'
+                            '.issuetabpanels:comment-tabpanel#comment-111273')
+        # Set h5 as the last item so that we can use the already written files in
+        # ASC or SWC to load the morphology in NEURON and get the apical section ID
+        # See also the link in the above exception
+        if 'h5' in args.out_morph_ext:
+            args.out_morph_ext = list(set(args.out_morph_ext) - {'h5'}) + ['h5']
 
         LOGGER.info("Loading CellCollection...")
         self.cells = CellCollection.load_mvd3(args.mvd3)
@@ -197,6 +228,7 @@ class Worker(WorkerApp):
     """ MPI application worker task. """
     def __init__(self, morph_writer):
         self.morph_writer = morph_writer
+        self.max_synthesis_attempts_count = 10
 
     def setup(self, args):
         """
@@ -228,19 +260,44 @@ class Worker(WorkerApp):
             self.axon_morph_list = utils.load_morphology_list(args.morph_axon)
             self.morph_cache = MorphLoader(args.base_morph_dir, file_ext='h5')
 
-    def _load_morphology(self, morph_list, gid):
-        """
-        Load morphology corresponding to `gid`.
+    def _load_morphology(self, morph_list, gid, xyz) -> Optional[Morphology]:
+        """Returns the morphology corresponding to gid if found
 
-        Returns:
-            (<morphio.Morphology>, <scaling factor or `None`>)
+        The morphology is then scaled, rotated around Y and
+        aligned according to the orientation field
         """
+        if morph_list is None:
+            return None
+
         rec = morph_list.loc[gid]
         if rec['morphology'] is None:
-            return None, None
-        morph = self.morph_cache.get(rec['morphology'])
+            raise SkipSynthesisError(f'gid {gid} not found in morph_list')
+
+        name = rec['morphology']
+        morph = self.morph_cache.get(name)
+        if morph is None:
+            raise SkipSynthesisError(f'Unable to find the morphology {name}')
+
+        morph = morph.as_mutable()
+        transform = np.identity(4)
+        transform[:3, :3] = np.matmul(
+            self.orientation.lookup(xyz)[0],
+            utils.random_rotation_y(n=1)[0]
+        )
         scale = rec.get('scale')
-        return morph, scale
+        if scale is not None:
+            transform = scale * transform
+        mt.transform(morph, transform)
+
+        return morph
+
+    def _attempt_synthesis(self, xyz, mtype):
+        for _ in range(self.max_synthesis_attempts_count):
+            try:
+                return self.context.synthesize(position=xyz, mtype=mtype)
+            except TNSError:
+                pass
+        raise SkipSynthesisError('Too many attempts at synthesizing cell with TNS')
 
     def __call__(self, gid):
         """
@@ -254,40 +311,21 @@ class Worker(WorkerApp):
         Returns:
             A WorkerResult object
         """
-        xyz = self.cells.positions[gid]
-        mtype = self.cells.properties['mtype'][gid]
-        axon_morph, axon_scale = None, None
-        if self.axon_morph_list is not None:
-            axon_morph, axon_scale = self._load_morphology(self.axon_morph_list, gid)
-            if axon_morph is None:
-                # no donor axon => drop position
-                return None
         seed = hash((self.seed, gid)) % (1 << 32)
+        xyz = self.cells.positions[gid]
         np.random.seed(seed)
-        result = self.context.synthesize(position=xyz, mtype=mtype)
+
+        axon_morph = self._load_morphology(self.axon_morph_list, gid, xyz)
+
+        result = self._attempt_synthesis(xyz, mtype=self.cells.properties['mtype'][gid])
         if axon_morph is not None:
-            axon_morph = axon_morph.as_mutable()
-            transform = np.identity(4)
-            transform[:3, :3] = np.matmul(
-                self.orientation.lookup(xyz)[0],
-                utils.random_rotation_y(n=1)[0]
-            )
-            if axon_scale is not None:
-                transform = axon_scale * transform
-            # axon: scale -> rotate around Y -> align in orientation field
-            mt.transform(axon_morph, transform)
             graft_axon(result.neuron, axon_morph)
 
         morph_name = self.morph_writer(result.neuron, seed=seed)
 
-        path = self.morph_writer.filepaths(seed=seed)[0]
-        if any(point is not None for point in result.apical_points):
-            cell = get_NRN_cell(path)
-            apical_section_ids = [point_to_section_end(cell.icell.apical, point)
-                                  for point in result.apical_points
-                                  if point is not None]
-        else:
-            apical_section_ids = None
+        apical_section_ids = get_NEURON_apical_sections(
+            path=self.morph_writer.filepaths(seed=seed)[0],
+            point_list=result.apical_points)
 
         return WorkerResult(morph_name, apical_section_ids)
 

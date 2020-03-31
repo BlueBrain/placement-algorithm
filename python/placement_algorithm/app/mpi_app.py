@@ -21,6 +21,7 @@ Worker nodes (MPI_RANK > 0):
 import abc
 import sys
 
+from placement_algorithm.exceptions import SkipSynthesisError
 from placement_algorithm.logger import LOGGER
 
 
@@ -108,6 +109,8 @@ def run_worker(args, COMM):
     for _id in task_ids:
         try:
             result = worker(_id)
+        except SkipSynthesisError:
+            resut = None
         except Exception:  # pylint: disable=broad-except
             LOGGER.error("Task #%d failed", _id)
             raise
