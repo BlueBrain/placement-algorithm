@@ -8,37 +8,21 @@ will run it.
 import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import yaml
 
-from numpy.testing import assert_array_equal
-from nose.tools import assert_equal, ok_, assert_raises
+from numpy.testing import assert_array_equal, assert_allclose, assert_almost_equal
+from nose.tools import assert_equal, ok_, assert_raises, assert_dict_equal
 from mock import MagicMock, patch
 from morph_tool.utils import iter_morphology_files
 
 import placement_algorithm.app.synthesize_morphologies as tested
 from placement_algorithm.app.mpi_app import _run, MASTER_RANK
-from atlas_mock import AtlasMock, CellCollectionMock
+from atlas_mock import CellCollectionMock, small_O1
 from mpi4py import MPI
 
 PATH = Path(__file__).parent
 DATA = Path(PATH, '../../../tests/data').resolve()
 
-
-def test_get_NEURON_apical_sections():
-    assert_array_equal(tested.get_NEURON_apical_sections(DATA / 'simple.asc', []),
-                       [])
-    assert_array_equal(tested.get_NEURON_apical_sections(DATA / 'simple.asc', [None]),
-                       [])
-    assert_array_equal(tested.get_NEURON_apical_sections(DATA / 'apical_test.swc',
-                                                         [None, [-2, 28, 0]]),
-                       [2])
-
-def test_fail_if_only_h5_output_ext():
-    args = MagicMock()
-    args.out_morph_ext = ['h5']
-    assert_raises(Exception, tested.Master().setup, args)
-
-@patch('placement_algorithm.app.synthesize_morphologies.Atlas.open',
-       MagicMock(return_value=AtlasMock()))
 @patch('placement_algorithm.app.synthesize_morphologies.CellCollection.load_mvd3',
        MagicMock(return_value=CellCollectionMock()))
 def run_mpi():
@@ -54,7 +38,8 @@ def run_mpi():
     args.overwrite = True
     args.out_morph_ext = ['h5', 'swc', 'asc']
     args.out_morph_dir = tmp_folder
-    args.out_apical = tmp_folder / 'apical.json'
+    args.out_apical = tmp_folder / 'apical.yaml'
+    args.atlas = str(tmp_folder)
 
     is_master = MPI.COMM_WORLD.Get_rank() == MASTER_RANK
 
@@ -65,9 +50,17 @@ def run_mpi():
     tmp_folder.mkdir(exist_ok=True)
 
     try:
+        small_O1(tmp_folder)
         _run(tested.Master, args)
         assert_equal(len(list(iter_morphology_files(tmp_folder))), 36)
         ok_(args.out_apical.exists())
+        with args.out_apical.open() as f, (DATA / 'apical.yaml').open() as expected:
+            apical_points = yaml.load(f, Loader=yaml.FullLoader)
+            expected_apical_points = yaml.load(expected, Loader=yaml.FullLoader)
+            assert_equal(apical_points.keys(), expected_apical_points.keys())
+            assert_equal(apical_points['02583f52ff47b88961e4216e2972ee8c'], None)
+            assert_almost_equal(apical_points['0fe23ddb9042a0d847e30b20b2922473'],
+                                [-1.3667779473765551, 150.504876316382, 2.914841684623109])
     finally:
         shutil.rmtree(tmp_folder)
 

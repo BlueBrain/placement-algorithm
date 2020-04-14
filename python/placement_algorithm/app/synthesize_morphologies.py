@@ -9,8 +9,9 @@
 """
 
 import argparse
-import json
 from typing import Dict, Optional
+
+import yaml
 from morphio.mut import Morphology
 
 import attr
@@ -22,7 +23,6 @@ from region_grower.context import SpaceContext
 import morph_tool.transform as mt
 from morph_tool.graft import graft_axon
 from morph_tool.loader import MorphLoader
-from morph_tool.nrnhines import point_to_section_end, get_NRN_cell
 from tns import TNSError
 
 from placement_algorithm.app import utils
@@ -31,34 +31,22 @@ from placement_algorithm.app.mpi_app import MasterApp, WorkerApp
 from placement_algorithm.logger import LOGGER
 
 
-def get_NEURON_apical_sections(path: str, point_list):
-    '''Returns the NEURON section indices (relative to the first apical section) of sections
-    ending at positions specified in point_list
-
-    Args:
-        path: a neuron path
-        point_list: a list of point coordinates
-    '''
-    points = [point for point in point_list if point is not None]
-    if not points:
-        return None
-
-    cell = get_NRN_cell(path)
-    return [point_to_section_end(cell.icell.apical, point) for point in points]
-
-
 @attr.s
 class WorkerResult:
     '''The container class for that has to be the returned type of Worker.__call__'''
     #: The morphology name
     name = attr.ib(type=str)
 
-    #: The list of apical section IDs
-    apical_section_ids = attr.ib(type=[])
+    #: The list coordinates where the apical tufts are starting
+    apical_points = attr.ib(type=[])
 
 
 class Master(MasterApp):
     """ MPI application master task. """
+    def __init__(self):
+        self.cells = None
+        self.args = None
+
     @staticmethod
     def parse_args():
         """ Parse command line arguments. """
@@ -96,7 +84,9 @@ class Master(MasterApp):
             "--out-mvd3", help="Path to output MVD3 file", required=True
         )
         parser.add_argument(
-            "--out-apical", help="Path to output JSON apical file", required=True
+            "--out-apical", help=("Path to output YAML apical file containing"
+                                  " the coordinates where apical dendrites are tufting"),
+            required=True
         )
         parser.add_argument(
             "--out-morph-dir", help="Path to output morphology folder", default=None
@@ -143,20 +133,6 @@ class Master(MasterApp):
           - check axon morphology list
           - prefetch atlas data
         """
-        # pylint: disable=attribute-defined-outside-init
-        if len(args.out_morph_ext) == 1 and args.out_morph_ext[0].lower() == 'h5':
-            raise Exception('Cannot synthesize only to H5 format, '
-                            'add another value for the option --out-morph-ext\n'
-                            'See also:\n'
-                            'https://bbpteam.epfl.ch/project/issues/browse/BBPP82-13?'
-                            'focusedCommentId=111273&page=com.atlassian.jira.plugin.system'
-                            '.issuetabpanels:comment-tabpanel#comment-111273')
-        # Set h5 as the last item so that we can use the already written files in
-        # ASC or SWC to load the morphology in NEURON and get the apical section ID
-        # See also the link in the above exception
-        if 'h5' in args.out_morph_ext:
-            args.out_morph_ext = list(set(args.out_morph_ext) - {'h5'}) + ['h5']
-
         LOGGER.info("Loading CellCollection...")
         self.cells = CellCollection.load_mvd3(args.mvd3)
 
@@ -205,7 +181,7 @@ class Master(MasterApp):
         LOGGER.info("Assigning CellCollection 'morphology' property...")
 
         utils.assign_morphologies(self.cells,
-                                  {gid: result.name for gid, result in result.items()})
+                                  {gid: item.name for gid, item in result.items()})
 
         LOGGER.info("Assigning CellCollection 'orientation' property...")
         # cell orientations are imbued in synthesized morphologies
@@ -216,12 +192,17 @@ class Master(MasterApp):
         LOGGER.info("Export to MVD3...")
         self.cells.save_mvd3(self.args.out_mvd3)
 
+        def first_non_None(apical_points):
+            '''Returns the first non None apical coordinates'''
+            for coord in apical_points:
+                if coord is not None:
+                    return coord.tolist()
+            return None
+
         with open(self.args.out_apical, 'w') as apical_file:
-            apical_dict = {
-                result.name: result.apical_section_ids[0] if result.apical_section_ids else None
-                for result in result.values()
-            }
-            json.dump(apical_dict, apical_file)
+            yaml.dump({item.name: first_non_None(item.apical_points)
+                       for item in result.values()},
+                      apical_file)
 
 
 class Worker(WorkerApp):
@@ -305,7 +286,7 @@ class Worker(WorkerApp):
 
           - launch NeuronGrower to synthesize soma and dendrites
           - load axon morphology, if needed, and do axon grafting
-          - export result to file
+          - export results to file
           - find the NRN section ID of the apical point
 
         Returns:
@@ -317,17 +298,12 @@ class Worker(WorkerApp):
 
         axon_morph = self._load_morphology(self.axon_morph_list, gid, xyz)
 
-        result = self._attempt_synthesis(xyz, mtype=self.cells.properties['mtype'][gid])
+        results = self._attempt_synthesis(xyz, mtype=self.cells.properties['mtype'][gid])
         if axon_morph is not None:
-            graft_axon(result.neuron, axon_morph)
+            graft_axon(results.neuron, axon_morph)
 
-        morph_name = self.morph_writer(result.neuron, seed=seed)
-
-        apical_section_ids = get_NEURON_apical_sections(
-            path=self.morph_writer.filepaths(seed=seed)[0],
-            point_list=result.apical_points)
-
-        return WorkerResult(morph_name, apical_section_ids)
+        return WorkerResult(name=self.morph_writer(results.neuron, seed=seed),
+                            apical_points=results.apical_points)
 
 
 def main():
