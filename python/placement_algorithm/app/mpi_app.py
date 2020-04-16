@@ -95,6 +95,7 @@ def run_master(master, args, COMM):
         COMM.recv()
         for _ in tqdm(range(len(task_ids)))
     )
+    result = {k: v for k, v in result.items() if v is not None}
 
     master.finalize(result)
 
@@ -110,7 +111,7 @@ def run_worker(args, COMM):
         try:
             result = worker(_id)
         except SkipSynthesisError:
-            resut = None
+            result = None
         except Exception:  # pylint: disable=broad-except
             LOGGER.error("Task #%d failed", _id)
             raise
