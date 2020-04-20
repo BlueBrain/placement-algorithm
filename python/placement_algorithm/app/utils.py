@@ -191,21 +191,18 @@ class MorphWriter(object):
                 subdirs = os.path.join(subdirs, sub)
         return morph_name, subdirs
 
-    def filepaths(self, seed):
-        '''Returns the paths to the morphology'''
-        morph_name, subdirs = self._generate_name(seed)
-        return [Path(self.output_dir, subdirs, "%s.%s" % (morph_name, ext))
-                for ext in self.file_ext]
-
     def __call__(self, morph, seed):
         # TODO: pass nrn_order option directly to .write()
         morph = morphio.mut.Morphology(  # pylint: disable=no-member
             morph, options=morphio.Option.nrn_order
         )
-        paths = self.filepaths(seed)
-        for path in paths:
-            morph.write(path)
-        return paths[0].stem
+        morph_name, subdirs = self._generate_name(seed)
+
+        full_stem = Path(subdirs, morph_name)
+
+        for ext in self.file_ext:
+            morph.write(Path(self.output_dir, full_stem.with_suffix('.' + ext)))
+        return str(full_stem)
 
 
 def assign_morphologies(cells, morphologies):

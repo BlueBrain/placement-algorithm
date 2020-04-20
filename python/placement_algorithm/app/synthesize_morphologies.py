@@ -44,7 +44,7 @@ class WorkerResult:
 class Master(MasterApp):
     """ MPI application master task. """
     def __init__(self):
-        self.cells = None
+        self.cells = None  # type: Optional[CellCollection]
         self.args = None
 
     @staticmethod

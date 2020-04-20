@@ -289,7 +289,8 @@ class TestMorphWriter(object):
     def test_call(self, morph_cls):
         import morphio
         self.test_obj._dir_depth = 2
-        self.test_obj('morph-obj', 42)
+        path = self.test_obj('morph-obj', 42)
+        nt.assert_equal(path, 'hashed/bd/d6/bdd640fb06671ad11c80317fa3b1799d')
         morph_cls.assert_has_calls([
             mock.call('morph-obj', options=morphio.Option.nrn_order),
             mock.call().write(Path('/root/hashed/bd/d6/bdd640fb06671ad11c80317fa3b1799d.asc')),
