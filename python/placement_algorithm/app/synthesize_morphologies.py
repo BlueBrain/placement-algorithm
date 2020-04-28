@@ -89,7 +89,7 @@ class Master(MasterApp):
             required=True
         )
         parser.add_argument(
-            "--out-morph-dir", help="Path to output morphology folder", default=None
+            "--out-morph-dir", help="Path to output morphology folder", default='out'
         )
         parser.add_argument(
             "--out-morph-ext",
@@ -113,6 +113,11 @@ class Master(MasterApp):
             help="Max drop ratio for any mtype (default: %(default)s)",
             type=float,
             default=0.0
+        )
+        parser.add_argument(
+            "--no-mpi",
+            help="Do not use MPI and run everything on a single core.",
+            action='store_true',
         )
         return parser.parse_args()
 

@@ -40,6 +40,7 @@ def run_mpi():
     args.out_morph_dir = tmp_folder
     args.out_apical = tmp_folder / 'apical.yaml'
     args.atlas = str(tmp_folder)
+    args.no_mpi = False
 
     is_master = MPI.COMM_WORLD.Get_rank() == MASTER_RANK
 

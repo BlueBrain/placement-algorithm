@@ -111,6 +111,11 @@ class Master(MasterApp):
             type=float,
             default=0.0
         )
+        parser.add_argument(
+            "--no-mpi",
+            help="Do not use MPI and run everything on a single core.",
+            action='store_true',
+        )
         return parser.parse_args()
 
     def _check_morph_lists(self, filepaths, max_na_ratio):

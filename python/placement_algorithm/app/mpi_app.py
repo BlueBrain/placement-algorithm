@@ -18,7 +18,7 @@ Worker nodes (MPI_RANK > 0):
     - for each task ID, send result to master
 """
 
-import abc
+from abc import ABCMeta, abstractmethod
 import sys
 
 from placement_algorithm.exceptions import SkipSynthesisError
@@ -28,11 +28,10 @@ from placement_algorithm.logger import LOGGER
 MASTER_RANK = 0
 
 
-class MasterApp(object):
+class MasterApp(metaclass=ABCMeta):
     """ Master app interface. """
-    __metaclass__ = abc.ABCMeta
 
-    @abc.abstractmethod
+    @abstractmethod
     def setup(self, args):
         """
         Initialize master task.
@@ -41,7 +40,7 @@ class MasterApp(object):
             An instance of Worker to be spawned on worker nodes.
         """
 
-    @abc.abstractmethod
+    @abstractmethod
     def finalize(self, result):
         """
         Finalize master work (e.g, write result to file).
@@ -50,16 +49,25 @@ class MasterApp(object):
             result: {task_id -> *} dictionary (e.g, morphology name per GID)
         """
 
+    @property
+    @abstractmethod
+    def task_ids(self):
+        """Returns a list of gids to process."""
 
-class WorkerApp(object):
+    @staticmethod
+    @abstractmethod
+    def parse_args():
+        """ Parse command line arguments. """
+
+
+class WorkerApp(metaclass=ABCMeta):
     """ Worker app interface. """
-    __metaclass__ = abc.ABCMeta
 
-    @abc.abstractmethod
+    @abstractmethod
     def setup(self, args):
         """ Initialize worker task. """
 
-    @abc.abstractmethod
+    @abstractmethod
     def __call__(self):
         """
         Process task with the given task ID.
@@ -69,32 +77,60 @@ class WorkerApp(object):
         """
 
 
+def _wrap_worker(_id, worker):
+    '''Wrap the worker job and catch exceptions that must be caught'''
+    try:
+        return _id, worker(_id)
+    except SkipSynthesisError:
+        return _id, None
+    except Exception:  # pylint: disable=broad-except
+        LOGGER.error("Task #%d failed", _id)
+        raise
+
+
 def run_master(master, args, COMM):
-    """ To-be-executed on master node (MPI_RANK == 0). """
+    """To-be-executed on master node (MPI_RANK == 0).
+
+    Args:
+        master: an instance of the Master Application
+        args: the CLI args
+        COMM: MPI.COMM_WORLD or None
+
+    Note: if COMM is None, MPI is not used and instead of
+    dispatching jobs, the master node will process everything
+    itself.
+    """
     import numpy as np
     from tqdm import tqdm
 
     worker = master.setup(args)
 
-    COMM.bcast(worker, root=MASTER_RANK)
+    if COMM is None:
+        import dask.bag as db
+        b = db.from_sequence(master.task_ids)
+        worker.setup(args)
+        result = dict(tqdm(b.map(_wrap_worker, worker=worker).compute(),
+                           total=len(master.task_ids)))
+    else:
+        COMM.bcast(worker, root=MASTER_RANK)
 
-    # Some tasks take longer to process than the others.
-    # Distribute them randomly across workers to amortize that.
-    # NB: task workers should take into account that task IDs are shuffled;
-    # and ensure reproducibility themselves.
-    task_ids = np.random.permutation(master.task_ids)
+        # Some tasks take longer to process than the others.
+        # Distribute them randomly across workers to amortize that.
+        # NB: task workers should take into account that task IDs are shuffled;
+        # and ensure reproducibility themselves.
+        task_ids = np.random.permutation(master.task_ids)
 
-    worker_count = COMM.Get_size() - 1
-    LOGGER.info("Distributing %d tasks across %d worker(s)...", len(task_ids), worker_count)
+        worker_count = COMM.Get_size() - 1
+        LOGGER.info("Distributing %d tasks across %d worker(s)...", len(task_ids), worker_count)
 
-    for rank, chunk in enumerate(np.array_split(task_ids, worker_count), 1):
-        COMM.send(chunk, dest=rank)
+        for rank, chunk in enumerate(np.array_split(task_ids, worker_count), 1):
+            COMM.send(chunk, dest=rank)
 
-    LOGGER.info("Processing tasks...")
-    result = dict(
-        COMM.recv()
-        for _ in tqdm(range(len(task_ids)))
-    )
+        LOGGER.info("Processing tasks...")
+        result = dict(
+            COMM.recv()
+            for _ in tqdm(range(len(task_ids)))
+        )
     result = {k: v for k, v in result.items() if v is not None}
 
     master.finalize(result)
@@ -108,14 +144,7 @@ def run_worker(args, COMM):
     worker.setup(args)
     task_ids = COMM.recv(source=MASTER_RANK)
     for _id in task_ids:
-        try:
-            result = worker(_id)
-        except SkipSynthesisError:
-            result = None
-        except Exception:  # pylint: disable=broad-except
-            LOGGER.error("Task #%d failed", _id)
-            raise
-        COMM.send((_id, result), dest=MASTER_RANK)
+        COMM.send(_wrap_worker(_id, worker), dest=MASTER_RANK)
 
 
 def _setup_excepthook(COMM):
@@ -135,18 +164,20 @@ def run(App):
 
 def _run(App, args):
     """ Launch MPI-based Master / Worker application. """
-    from mpi4py import MPI  # pylint: disable=import-error
-
-    COMM = MPI.COMM_WORLD
-    if COMM.Get_size() < 2:
-        raise RuntimeError(
-            "MPI environment should contain at least two nodes;\n"
-            "rank 0 serves as the coordinator, rank N > 0 -- as task workers.\n"
-        )
-
-    _setup_excepthook(COMM)
-
-    if COMM.Get_rank() == MASTER_RANK:
-        run_master(App(), args, COMM)
+    if args.no_mpi:
+        run_master(App(), args, None)
     else:
-        run_worker(args, COMM)
+        from mpi4py import MPI  # pylint: disable=import-error
+        COMM = MPI.COMM_WORLD
+        if COMM.Get_size() < 2:
+            raise RuntimeError(
+                "MPI environment should contain at least two nodes;\n"
+                "rank 0 serves as the coordinator, rank N > 0 -- as task workers.\n"
+            )
+
+        _setup_excepthook(COMM)
+
+        if COMM.Get_rank() == MASTER_RANK:
+            run_master(App(), args, COMM)
+        else:
+            run_worker(args, COMM)

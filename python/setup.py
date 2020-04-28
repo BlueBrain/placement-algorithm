@@ -13,6 +13,7 @@ APP_EXTRAS = [
     'neurom @ git+https://git@github.com/BlueBrain/NeuroM.git@mut_morphio#egg=neurom-2.0.0',
     'tqdm>=4.0',
     'voxcell>=2.5',
+    'dask[distributed,bag]>=2.15.0',
 ]
 
 SYNTHESIS_EXTRAS = [
