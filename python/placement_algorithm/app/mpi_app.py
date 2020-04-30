@@ -107,10 +107,12 @@ def run_master(master, args, COMM):
 
     if COMM is None:
         import dask.bag as db
+        from dask.diagnostics import ProgressBar
         b = db.from_sequence(master.task_ids)
+        ProgressBar().register()
+
         worker.setup(args)
-        result = dict(tqdm(b.map(_wrap_worker, worker=worker).compute(),
-                           total=len(master.task_ids)))
+        result = dict(b.map(_wrap_worker, worker=worker).compute())
     else:
         COMM.bcast(worker, root=MASTER_RANK)
 
