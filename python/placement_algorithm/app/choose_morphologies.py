@@ -11,7 +11,6 @@ import itertools
 import numpy as np
 import pandas as pd
 
-from voxcell import CellCollection
 from voxcell.nexus.voxelbrain import Atlas
 
 from placement_algorithm import files, algorithm
@@ -90,7 +89,10 @@ class Master(MasterApp):
             description="Choose morphologies using 'placement hints'."
         )
         parser.add_argument(
-            "--mvd3", help="Path to input MVD3 file", required=True
+            "--mvd3", help="Deprecated! Path to input MVD3 file. Use --cells-path instead."
+        )
+        parser.add_argument(
+            "--cells-path", help="Path to a file storing cells collection"
         )
         parser.add_argument(
             "--morphdb", help="Path to MorphDB file", required=True
@@ -154,7 +156,7 @@ class Master(MasterApp):
         # pylint: disable=attribute-defined-outside-init
 
         LOGGER.info("Loading CellCollection...")
-        self.cells = CellCollection.load_mvd3(args.mvd3)
+        self.cells = utils.load_cells(args.cells_path, args.mvd3)
 
         LOGGER.info("Loading placement rules...")
         rules = files.PlacementRules(args.rules)
@@ -222,7 +224,7 @@ class Worker(WorkerApp):
           - load atlas data into memory
         """
         # pylint: disable=attribute-defined-outside-init
-        self.cells = CellCollection.load_mvd3(args.mvd3)
+        self.cells = utils.load_cells(args.cells_path, args.mvd3)
         self.atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
         self.alpha = args.alpha
         self.scales = args.scales

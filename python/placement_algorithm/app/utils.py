@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 import morphio
+from voxcell import CellCollection
 
 from placement_algorithm.logger import LOGGER
 
@@ -30,6 +31,24 @@ def load_json(filepath):
     """ Load JSON file. """
     with open(filepath) as f:
         return json.load(f)
+
+
+def load_cells(filepath, mvd3_filepath=None):
+    """Load CellCollection from file.
+
+    Args:
+        filepath (str): cells file
+        mvd3_filepath (str): MVD3 cells file. Temporary for backward compatibility.
+
+    Returns:
+        CellCollection: cells
+    """
+    if mvd3_filepath is not None:
+        LOGGER.warning('--mvd3 option is deprecated. Use --cells_path instead.')
+        return CellCollection.load_mvd3(mvd3_filepath)
+    if filepath is None:
+        raise ValueError('`--cells-path` option is required')
+    return CellCollection.load(filepath)
 
 
 def random_rotation_y(n):

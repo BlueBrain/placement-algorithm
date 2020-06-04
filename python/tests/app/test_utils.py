@@ -195,6 +195,22 @@ def test_assign_morphologies():
     )
 
 
+@patch('voxcell.CellCollection.load')
+@patch('voxcell.CellCollection.load_mvd3')
+def test_load_cells(load_mvd3_mock, load_mock):
+    test_module.load_cells('cells_path')
+    load_mock.assert_called_once_with('cells_path')
+    load_mvd3_mock.assert_not_called()
+
+
+@patch('voxcell.CellCollection.load')
+@patch('voxcell.CellCollection.load_mvd3')
+def test_load_cells_mvd3(load_mvd3_mock, load_mock):
+    test_module.load_cells('cells_path', 'mvd3_path')
+    load_mvd3_mock.assert_called_once_with('mvd3_path')
+    load_mock.assert_not_called()
+
+
 class TestMorphWriter(object):
     def setup(self):
         self.test_obj = test_module.MorphWriter('/root', ['asc', 'swc'])

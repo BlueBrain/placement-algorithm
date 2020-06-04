@@ -133,7 +133,6 @@ def run_master(master, args, COMM):
             COMM.recv()
             for _ in tqdm(range(len(task_ids)))
         )
-    result = {k: v for k, v in result.items() if v is not None}
 
     master.finalize(result)
 

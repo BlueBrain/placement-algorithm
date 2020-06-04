@@ -54,7 +54,10 @@ class Master(MasterApp):
             description="Choose morphologies using 'placement hints'."
         )
         parser.add_argument(
-            "--mvd3", help="Path to input MVD3 file", required=True
+            "--mvd3", help="Deprecated! Path to input MVD3 file. Use --cells-path instead."
+        )
+        parser.add_argument(
+            "--cells-path", help="Path to a file storing cells collection"
         )
         parser.add_argument(
             "--tmd-parameters", help="Path to JSON with TMD parameters", required=True
@@ -139,7 +142,7 @@ class Master(MasterApp):
           - prefetch atlas data
         """
         LOGGER.info("Loading CellCollection...")
-        self.cells = CellCollection.load_mvd3(args.mvd3)
+        self.cells = utils.load_cells(args.cells_path, args.mvd3)
 
         LOGGER.info("Preparing morphology output folder...")
         morph_writer = utils.MorphWriter(args.out_morph_dir, args.out_morph_ext)
@@ -231,7 +234,7 @@ class Worker(WorkerApp):
 
         atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
 
-        self.cells = CellCollection.load_mvd3(args.mvd3)
+        self.cells = utils.load_cells(args.cells_path, args.mvd3)
         self.context = SpaceContext(
             atlas=atlas,
             tmd_distributions_path=args.tmd_distributions,

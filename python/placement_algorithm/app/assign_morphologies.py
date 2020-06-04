@@ -18,7 +18,7 @@ import morph_tool.transform as mt
 from morph_tool.graft import find_axon, graft_axon
 from morph_tool.loader import MorphLoader
 
-from voxcell import CellCollection, OrientationField
+from voxcell import OrientationField
 from voxcell.nexus.voxelbrain import Atlas
 
 from placement_algorithm.app import utils
@@ -54,7 +54,10 @@ class Master(MasterApp):
             description="Choose morphologies using 'placement hints'."
         )
         parser.add_argument(
-            "--mvd3", help="Path to input MVD3 file", required=True
+            "--mvd3", help="Deprecated! Path to input MVD3 file. Use --cells-path instead."
+        )
+        parser.add_argument(
+            "--cells-path", help="Path to a file storing cells collection"
         )
         parser.add_argument(
             "--morph", help="TSV file with morphology list", required=True
@@ -83,7 +86,10 @@ class Master(MasterApp):
             action="store_true"
         )
         parser.add_argument(
-            "--out-mvd3", help="Path to output MVD3 file", required=True
+            "--out-mvd3", help="Deprecated! Path to output MVD3 file. Use --out-cells-path instead."
+        )
+        parser.add_argument(
+            "--out-cells-path", help="Path to output cells file."
         )
         parser.add_argument(
             "--out-morph-dir", help="Path to output morphology folder", default=None
@@ -142,7 +148,7 @@ class Master(MasterApp):
         # pylint: disable=attribute-defined-outside-init
 
         LOGGER.info("Loading CellCollection...")
-        self.cells = CellCollection.load_mvd3(args.mvd3)
+        self.cells = utils.load_cells(args.cells_path, args.mvd3)
 
         if args.instantiate:
             LOGGER.info("Preparing morphology output folder...")
@@ -185,8 +191,14 @@ class Master(MasterApp):
         LOGGER.info("Assigning CellCollection 'morphology' property...")
         utils.assign_morphologies(self.cells, result)
 
-        LOGGER.info("Export to MVD3...")
-        self.cells.save_mvd3(self.args.out_mvd3)
+        LOGGER.info("Export CellCollection...")
+        if self.args.out_mvd3:
+            LOGGER.warning('--out-mvd3 option is deprecated. Use --out-cells-path instead.')
+            self.cells.save_mvd3(self.args.out_mvd3)
+        elif self.args.out_cells_path is None:
+            raise ValueError('`--out-cells-path` option is required')
+        else:
+            self.cells.save(self.args.out_cells_path)
 
 
 class Worker(WorkerApp):
@@ -205,7 +217,7 @@ class Worker(WorkerApp):
         import morphio
         morphio.set_maximum_warnings(0)  # supress MorphIO warnings on writing files
 
-        self.cells = CellCollection.load_mvd3(args.mvd3)
+        self.cells = utils.load_cells(args.cells_path, args.mvd3)
         self.morph_cache = MorphLoader(args.base_morph_dir, file_ext='h5')
         self.morph_list = utils.load_morphology_list(args.morph)
         if args.morph_axon is None:

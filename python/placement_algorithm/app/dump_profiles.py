@@ -12,10 +12,9 @@ from collections import OrderedDict
 
 import json
 
-from voxcell import CellCollection
 from voxcell.nexus.voxelbrain import Atlas
 
-from placement_algorithm.app.utils import get_layer_profile
+from placement_algorithm.app.utils import get_layer_profile, load_cells
 
 
 def main():
@@ -24,7 +23,10 @@ def main():
         description="Dump layer profile(s)"
     )
     parser.add_argument(
-        "--mvd3", help="Path to input MVD3 file", required=True
+        "--mvd3", help="Deprecated! Path to input MVD3 file. Use --cells-path instead."
+    )
+    parser.add_argument(
+        "--cells-path", help="Path to a file storing cells collection"
     )
     parser.add_argument(
         "--atlas", help="Atlas URL", required=True
@@ -40,7 +42,7 @@ def main():
     )
     args = parser.parse_args()
 
-    cells = CellCollection.load_mvd3(args.mvd3)
+    cells = load_cells(args.cells_path, args.mvd3)
     atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
 
     if args.gids is None:
