@@ -23,7 +23,7 @@ from mpi4py import MPI
 PATH = Path(__file__).parent
 DATA = Path(PATH, '../../../tests/data').resolve()
 
-@patch('placement_algorithm.app.synthesize_morphologies.CellCollection.load_mvd3',
+@patch('placement_algorithm.app.utils.CellCollection.load_mvd3',
        MagicMock(return_value=CellCollectionMock()))
 def run_mpi():
     tmp_folder = Path('/tmp/test-run-synthesis')

@@ -17,7 +17,7 @@ from morphio.mut import Morphology
 import attr
 import numpy as np
 
-from voxcell import CellCollection, OrientationField
+from voxcell import OrientationField
 from voxcell.nexus.voxelbrain import Atlas
 from region_grower.context import SpaceContext
 import morph_tool.transform as mt
@@ -247,7 +247,12 @@ class Worker(WorkerApp):
             self.axon_morph_list = None
         else:
             self.axon_morph_list = utils.load_morphology_list(args.morph_axon)
-            self.morph_cache = MorphLoader(args.base_morph_dir, file_ext='h5')
+
+            # When no_mpi == True, dask is used, and it can't pickle the lru_cache
+            # so we disable it
+            cache_size = None if not args.no_mpi else 0
+            self.morph_cache = MorphLoader(args.base_morph_dir, file_ext='h5',
+                                           cache_size=cache_size)
 
     def _load_morphology(self, morph_list, gid, xyz) -> Optional[Morphology]:
         """Returns the morphology corresponding to gid if found

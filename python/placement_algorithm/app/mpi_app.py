@@ -83,9 +83,9 @@ def _wrap_worker(_id, worker):
         return _id, worker(_id)
     except SkipSynthesisError:
         return _id, None
-    except Exception:  # pylint: disable=broad-except
+    except Exception as e:
         LOGGER.error("Task #%d failed", _id)
-        raise
+        raise e
 
 
 def run_master(master, args, COMM):

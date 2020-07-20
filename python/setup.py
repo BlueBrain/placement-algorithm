@@ -9,8 +9,8 @@ VERSION = imp.load_source("", "placement_algorithm/version.py").__version__
 
 APP_EXTRAS = [
     'morphio>=2.0.5',
-    'morph-tool>=0.2.3',
-    'neurom @ git+https://git@github.com/BlueBrain/NeuroM.git@mut_morphio#egg=neurom-2.0.0',
+    'morph-tool>=0.2.10',
+    'neurom>=2.0.0.dev4',
     'tqdm>=4.0',
     'voxcell>=2.7',
     'dask[distributed,bag]>=2.15.0',

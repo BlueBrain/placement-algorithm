@@ -39,7 +39,7 @@ class BelowRule(Rule):
     ANNOTATION_PARAMS = ['y_max']
 
     def __init__(self, y_rel, tolerance, segment_type):
-        super(BelowRule, self).__init__(segment_type, strict=True)
+        super().__init__(segment_type, strict=True)
         self.y_rel = y_rel
         self.tolerance = tolerance
 
@@ -74,7 +74,7 @@ class RegionTargetRule(Rule):
     ANNOTATION_PARAMS = ['y_min', 'y_max']
 
     def __init__(self, y_rel_min, y_rel_max, segment_type):
-        super(RegionTargetRule, self).__init__(segment_type, strict=False)
+        super().__init__(segment_type, strict=False)
         self.y_rel_min = y_rel_min
         self.y_rel_max = y_rel_max
 
