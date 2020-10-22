@@ -7,11 +7,10 @@ will run it.
 '''
 import shutil
 from pathlib import Path
-from tempfile import TemporaryDirectory
 import yaml
 
-from numpy.testing import assert_array_equal, assert_allclose, assert_almost_equal
-from nose.tools import assert_equal, ok_, assert_raises, assert_dict_equal
+from numpy.testing import assert_allclose
+from nose.tools import assert_equal, ok_
 from mock import MagicMock, patch
 from morph_tool.utils import iter_morphology_files
 
@@ -58,10 +57,9 @@ def run_mpi():
         with args.out_apical.open() as f, (DATA / 'apical.yaml').open() as expected:
             apical_points = yaml.load(f, Loader=yaml.FullLoader)
             expected_apical_points = yaml.load(expected, Loader=yaml.FullLoader)
-            assert_equal(apical_points.keys(), expected_apical_points.keys())
-            assert_equal(apical_points['02583f52ff47b88961e4216e2972ee8c'], None)
-            assert_almost_equal(apical_points['0fe23ddb9042a0d847e30b20b2922473'],
-                                [-1.3667779473765551, 150.504876316382, 2.914841684623109])
+        assert_equal(apical_points.keys(), expected_apical_points.keys())
+        for k in apical_points.keys():
+            assert_allclose(apical_points[k], expected_apical_points[k])
     finally:
         shutil.rmtree(tmp_folder)
 
