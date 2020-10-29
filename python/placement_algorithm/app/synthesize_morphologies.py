@@ -20,6 +20,7 @@ import numpy as np
 from voxcell import OrientationField
 from voxcell.nexus.voxelbrain import Atlas
 from region_grower.context import SpaceContext
+from region_grower import RegionGrowerError
 import morph_tool.transform as mt
 from morph_tool.graft import graft_axon
 from morph_tool.loader import MorphLoader
@@ -189,7 +190,8 @@ class Master(MasterApp):
         LOGGER.info("Assigning CellCollection 'morphology' property...")
 
         utils.assign_morphologies(self.cells,
-                                  {gid: item.name for gid, item in result.items()})
+                                  {gid: item.name if item is not None else None
+                                   for gid, item in result.items()})
 
         LOGGER.info("Assigning CellCollection 'orientation' property...")
         # cell orientations are imbued in synthesized morphologies
@@ -209,7 +211,7 @@ class Master(MasterApp):
 
         with open(self.args.out_apical, 'w') as apical_file:
             yaml.dump({item.name: first_non_None(item.apical_points)
-                       for item in result.values()},
+                       for item in result.values() if item is not None},
                       apical_file)
 
 
@@ -291,6 +293,8 @@ class Worker(WorkerApp):
                 return self.context.synthesize(position=xyz, mtype=mtype)
             except TNSError:
                 pass
+            except RegionGrowerError:
+                raise SkipSynthesisError('Input scaling is too small') from RegionGrowerError
         raise SkipSynthesisError('Too many attempts at synthesizing cell with TNS')
 
     def __call__(self, gid):
@@ -305,7 +309,7 @@ class Worker(WorkerApp):
         Returns:
             A WorkerResult object
         """
-        seed = hash((self.seed, gid)) % (1 << 32)
+        seed = (int(self.seed) + gid) % (1 << 32)
         xyz = self.cells.positions[gid]
         np.random.seed(seed)
 
