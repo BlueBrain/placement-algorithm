@@ -309,7 +309,7 @@ class Worker(WorkerApp):
         Returns:
             A WorkerResult object
         """
-        seed = (int(self.seed) + gid) % (1 << 32)
+        seed = (self.seed + gid) % (1 << 32)
         xyz = self.cells.positions[gid]
         np.random.seed(seed)
 
