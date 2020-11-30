@@ -6,6 +6,7 @@ The test function should NOT have *test* in the name, or nosetests
 will run it.
 '''
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 import yaml
@@ -98,6 +99,25 @@ def test_run_no_mpi():
         assert_equal(apical_points.keys(), expected_apical_points.keys())
         for k in apical_points.keys():
             assert_allclose(apical_points[k], expected_apical_points[k])
+
+
+def test_parser():
+    master = tested.Master()
+    with patch(
+        'sys.argv',
+        [
+            'synthesize_morphologies',
+            '--tmd-parameters', 'test_params',
+            '--tmd-distributions', 'test_distributions',
+            '--atlas', 'test_atlas',
+            '--out-apical', 'test_out',
+        ]
+    ):
+        res = master.parse_args()
+        assert res.tmd_parameters == 'test_params'
+        assert res.tmd_distributions == 'test_distributions'
+        assert res.atlas == 'test_atlas'
+        assert res.out_apical == 'test_out'
 
 
 if __name__ == '__main__':

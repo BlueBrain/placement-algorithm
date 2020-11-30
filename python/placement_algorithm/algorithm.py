@@ -4,9 +4,22 @@ Module encapsulating placement algorithm per se:
  - score aggregation
  - choosing morphology based on its score
 """
+from enum import Enum
 
 import numpy as np
 import pandas as pd
+from scipy.stats import norm
+
+UNIFORM_BIAS = "uniform"
+LINEAR_BIAS = "linear"
+GAUSSIAN_BIAS = "gaussian"
+
+
+class COMPUTE_OPTIONAL_SCORES(Enum):
+    """Enum used to define whether optional scores are computed and used or not."""
+    DO_NOT_COMPUTE = 0
+    COMPUTE_ONLY = 1
+    COMPUTE_AND_USE = 2
 
 
 def y_absolute(y_rel, position):
@@ -163,14 +176,28 @@ def aggregate_optional_score(scores, eps=1e-5):
     return aggregated_scores
 
 
-def _scale_bias(scale):
-    if scale > 1.0:
-        return 1.0 / scale
+def _scale_bias(scale, kind):
+    if kind == UNIFORM_BIAS:
+        return 1
+    elif kind == LINEAR_BIAS:
+        if scale > 1.0:
+            return 1.0 / scale
+        else:
+            return scale
+    elif kind == GAUSSIAN_BIAS:
+        gaussian = norm(loc=1, scale=0.25)
+        norm_factor = gaussian.pdf(1)
+        return gaussian.pdf(scale) / norm_factor
     else:
-        return scale
+        raise ValueError(
+            f"The kind must be one of [{LINEAR_BIAS}, {UNIFORM_BIAS}, {GAUSSIAN_BIAS}]"
+        )
 
 
-def score_morphologies(position, rules, params, scale=1.0, segment_type=None):
+def score_morphologies(
+    position, rules, params, scale=1.0, segment_type=None,
+    bias_kind=LINEAR_BIAS, optional_scores_process=COMPUTE_OPTIONAL_SCORES.COMPUTE_AND_USE
+):
     """
     Calculate placement score for a batch of annotated morphologies.
 
@@ -180,6 +207,9 @@ def score_morphologies(position, rules, params, scale=1.0, segment_type=None):
         params: pandas DataFrame with morphology annotations
         scale: scale factor along Y-axis
         segment_type: if specified, check only corresponding rules ('axon' or 'dendrite')
+        bias_kind: kind of bias for the scale (can be uniform, linear or gaussian)
+        optional_scores_process: should be an instance of COMPUTE_OPTIONAL_SCORES enum that defines
+            whether optional scores are computed and used or not.
 
     Returns:
         pandas DataFrame with aggregated scores;
@@ -201,12 +231,46 @@ def score_morphologies(position, rules, params, scale=1.0, segment_type=None):
         else:
             optional.append(rule_id)
     result['strict'] = aggregate_strict_score(result[strict])
-    result['optional'] = aggregate_optional_score(result[optional])
-    result['total'] = result['strict'] * result['optional'] * _scale_bias(scale)
+    result['total'] = result['strict'] * _scale_bias(scale, kind=bias_kind)
+    if optional_scores_process != COMPUTE_OPTIONAL_SCORES.DO_NOT_COMPUTE:
+        result['optional'] = aggregate_optional_score(result[optional])
+        if optional_scores_process == COMPUTE_OPTIONAL_SCORES.COMPUTE_AND_USE:
+            result['total'] *= result['optional']
     return result
 
 
-def choose_morphology(position, rules, params, alpha=1.0, scales=None, segment_type=None):
+def _export_scores(
+    scores_output_file: str,
+    scores: pd.DataFrame,
+    choice: int,
+    weights: pd.Series,
+    w_sum: float,
+    with_scales: bool,
+) -> None:
+    """Export the scores to the given file."""
+    scores["weight"] = weights
+    scores["chosen"] = False
+    if choice is not None:
+        scores.loc[choice, "chosen"] = True
+    scores["probability"] = weights / w_sum
+    if with_scales:
+        scores.rename_axis(index=["morphology", "scale"], inplace=True)
+        scores.reset_index(level=1, inplace=True)
+    scores.to_csv(scores_output_file, index_label="morphology")
+
+
+# pylint: disable=too-many-arguments
+def choose_morphology(
+    position,
+    rules,
+    params,
+    alpha=1.0,
+    scales=None,
+    segment_type=None,
+    scores_output_file=None,
+    bias_kind=LINEAR_BIAS,
+    with_optional_scores=True,
+):
     """
     Choose morphology from a list of annotated morphologies.
 
@@ -217,22 +281,43 @@ def choose_morphology(position, rules, params, alpha=1.0, scales=None, segment_t
         alpha: exponential factor for scores
         scales: list of scales to choose from
         segment_type: if specified, check only corresponding rules ('axon' or 'dendrite')
+        scores_output_file: if set to a path, scores are exported to this path
+        bias_kind: kind of bias for the scale (can be linear or gaussian)
+        with_optional_scores: if set to False, the optional rules are ignored for choice
 
     Returns:
         Morphology picked at random with scores ** alpha as probability weights
         (`None` if all the morphologies score 0).
     """
+    if with_optional_scores:
+        compute_optional_scores = COMPUTE_OPTIONAL_SCORES.COMPUTE_AND_USE
+    elif scores_output_file is not None:
+        compute_optional_scores = COMPUTE_OPTIONAL_SCORES.COMPUTE_ONLY
+    else:
+        compute_optional_scores = COMPUTE_OPTIONAL_SCORES.DO_NOT_COMPUTE
+
     if scales is None:
-        scores = score_morphologies(position, rules, params, segment_type=segment_type)
+        scores = score_morphologies(
+            position, rules, params, segment_type=segment_type, bias_kind=bias_kind,
+            optional_scores_process=compute_optional_scores
+        )
     else:
         scores = {}
         for scale in scales:
             scores[scale] = score_morphologies(
-                position, rules, params, scale=scale, segment_type=segment_type
+                position, rules, params, scale=scale, segment_type=segment_type,
+                bias_kind=bias_kind, optional_scores_process=compute_optional_scores
             )
         scores = pd.concat(scores).swaplevel()
     weights = scores['total'].values ** alpha
     w_sum = np.sum(weights)
+
     if np.isclose(w_sum, 0.0):
-        return None
-    return np.random.choice(scores.index.values, p=weights / w_sum)
+        choice = None
+    else:
+        choice = np.random.choice(scores.index.values, p=weights / w_sum)
+
+    if scores_output_file is not None:
+        _export_scores(scores_output_file, scores, choice, weights, w_sum, scales is not None)
+
+    return choice

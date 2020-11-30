@@ -140,7 +140,7 @@ That allows us to penalize low score for a particular rule heavier than a simple
 
 Please note that if some optional score is close to zero (<0.001); the aggregated optional score would be zero, same as with strict scores.
 
-If there are no optional scores, :math:`\hat{I} = 1`.
+If there are no optional scores or if optional scores are ignored, :math:`\hat{I} = 1`.
 
 The final score :math:`\hat{S}` is a product of aggregated strict and optional scores:
 
@@ -192,15 +192,22 @@ All cell IDs from MVD3 would be listed in the output; those where no morphology 
 Parameters
 ~~~~~~~~~~
 
-    --mvd3            Path to input MVD3 file [required]
-    --morphdb         Path to MorphDB file [required]
-    --atlas           Atlas URL [required]
-    --atlas-cache     Atlas cache folder [optional, default: None]
-    --annotations     Path to JSON file with compacted annotations [required]
-    --rules           Path to placement rules file [required]
-    --alpha           [optional, default: 1.0]
-    --seed            Random number generator seed [optional, default: 0]
-    --output          Path to output TSV file [required]
+    --mvd3                Path to input MVD3 file [deprecated: use --cells-path instead]
+    --cells-path          Path to a file storing cells collection [required]
+    --morphdb             Path to MorphDB file [required]
+    --atlas               Atlas URL [required]
+    --atlas-cache         Atlas cache folder [optional, default: None]
+    --annotations         Path to JSON file with compacted annotations [required]
+    --rules               Path to placement rules file [required]
+    --segment-type        Segment type to consider (if not specified, consider both) [optional, choices: ['axon', 'dendrite']]
+    --alpha               Use `score ** alpha` as morphology choice probability [optional, default: 1.0]
+    --scales              Scale(s) to check [optional, default: None]
+    --seed                Random number generator seed [optional, default: 0]
+    --output              Path to output TSV file [required]
+    --no-mpi              Do not use MPI and run everything on a single core [optional]
+    --scores-output-path  Directory path to which the scores for each cell are exported [optional]
+    --bias-kind           Kind of bias used to penalize scores of rescaled morphologies [optional, choices: ['uniform', 'linear', 'gaussian'], default: 'linear']
+    --no-optional-scores  Trigger to ignore optional rules for morphology choice [optional]
 
 
 assign-morphologies

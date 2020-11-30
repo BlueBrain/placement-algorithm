@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import imp
-import sys
 
 from setuptools import setup, find_packages
 
@@ -10,6 +9,7 @@ VERSION = imp.load_source("", "placement_algorithm/version.py").__version__
 APP_EXTRAS = [
     'morphio>=2.0.5',
     'morph-tool>=0.2.10',
+    'neuroc',
     'neurom>=2.0.0.dev4',
     'tqdm>=4.0',
     'voxcell>=2.7',
@@ -18,7 +18,7 @@ APP_EXTRAS = [
 
 SYNTHESIS_EXTRAS = [
     'region-grower>=0.1.5',
-    'tns>=2.2.7',
+    'tns>=2.2.7,<2.3',
 ]
 
 MPI_EXTRAS = [

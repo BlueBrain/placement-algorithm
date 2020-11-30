@@ -7,6 +7,7 @@
 
 import argparse
 import itertools
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -75,6 +76,7 @@ def _bind_annotations(annotations, morphdb, rules):
         mtype = key[mtype_idx]
         group_annotations = {
             m: annotations[m] for m in group['morphology'].unique()
+            if m in annotations
         }
         result[key] = rules.bind(group_annotations, mtype)
     return result
@@ -141,6 +143,26 @@ class Master(MasterApp):
             help="Do not use MPI and run everything on a single core.",
             action='store_true',
         )
+        parser.add_argument(
+            "--scores-output-path",
+            help="Directory path to which the scores for each cell are exported.",
+            default=None,
+        )
+        parser.add_argument(
+            "--bias-kind",
+            help=(
+                "Kind of bias used to penalize scores of rescaled morphologies "
+                "(default: %(default)s)"
+            ),
+            choices=[algorithm.UNIFORM_BIAS, algorithm.LINEAR_BIAS, algorithm.GAUSSIAN_BIAS],
+            default=algorithm.LINEAR_BIAS,
+        )
+        parser.add_argument(
+            "--no-optional-scores",
+            action="store_true",
+            help="Trigger to ignore optional rules for morphology choice.",
+        )
+
         return parser.parse_args()
 
     def setup(self, args):
@@ -232,6 +254,11 @@ class Worker(WorkerApp):
         self.segment_type = args.segment_type
         _fetch_atlas_data(self.atlas, self.layer_names, memcache=True)
 
+        self.scores_output_path = args.scores_output_path
+        self.bias_kind = args.bias_kind
+        self._score_suffix_len = len(str(self.cells.properties.index.max()))
+        self.with_optional_scores = not bool(args.no_optional_scores)
+
     def _get_profile(self, gid):
         """ Query layer profile for given GID. """
         return utils.get_layer_profile(
@@ -252,13 +279,21 @@ class Worker(WorkerApp):
         Returns:
             Chosen morphology name (`None` if no matching morphology found).
         """
-        seed = hash((self.seed, gid)) % (1 << 32)
+        seed = (self.seed + gid) % (1 << 32)
         np.random.seed(seed)
         profile = self._get_profile(gid)
         rules, params = self._get_annotations(gid)
+        if self.scores_output_path is not None:
+            score_folder = Path(self.scores_output_path)
+            score_folder.mkdir(exist_ok=True)
+            score_file = score_folder / f"scores_{gid:0{self._score_suffix_len}}.csv"
+        else:
+            score_file = None
         return algorithm.choose_morphology(
             profile, rules, params,
-            alpha=self.alpha, scales=self.scales, segment_type=self.segment_type
+            alpha=self.alpha, scales=self.scales, segment_type=self.segment_type,
+            scores_output_file=score_file, bias_kind=self.bias_kind,
+            with_optional_scores=self.with_optional_scores
         )
 
 

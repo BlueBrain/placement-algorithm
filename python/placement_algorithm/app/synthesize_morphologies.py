@@ -24,6 +24,9 @@ from region_grower import RegionGrowerError
 import morph_tool.transform as mt
 from morph_tool.graft import graft_axon
 from morph_tool.loader import MorphLoader
+from neuroc.scale import (
+    rotational_jitter, RotationParameters, scale_morphology, ScaleParameters
+)
 from tns import TNSError
 
 from placement_algorithm.app import utils
@@ -120,6 +123,20 @@ class Master(MasterApp):
             help="Max drop ratio for any mtype (default: %(default)s)",
             type=float,
             default=0.0
+        )
+        parser.add_argument(
+            "--scaling-jitter-std",
+            type=float,
+            help=(
+                "Apply scaling jitter to all axon sections with the given std."
+            ),
+        )
+        parser.add_argument(
+            "--rotational-jitter-std",
+            type=float,
+            help=(
+                "Apply rotational jitter to all axon sections with the given std."
+            ),
         )
         parser.add_argument(
             "--no-mpi",
@@ -247,6 +264,8 @@ class Worker(WorkerApp):
         )
         self.orientation = atlas.load_data('orientation', cls=OrientationField)
         self.seed = args.seed
+        self.scaling_jitter_std = args.scaling_jitter_std
+        self.rotational_jitter_std = args.rotational_jitter_std
 
         if args.morph_axon is None:
             self.axon_morph_list = None
@@ -287,6 +306,11 @@ class Worker(WorkerApp):
         if scale is not None:
             transform = scale * transform
         mt.transform(morph, transform)
+
+        if self.rotational_jitter_std is not None:
+            rotational_jitter(morph, RotationParameters(std_angle=self.rotational_jitter_std))
+        if self.scaling_jitter_std is not None:
+            scale_morphology(morph, section_scaling=ScaleParameters(std=self.scaling_jitter_std))
 
         return morph
 

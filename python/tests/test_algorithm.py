@@ -156,11 +156,28 @@ def test_aggregate_optional_score_empty():
     )
 
 def test_scale_bias():
-    npt.assert_almost_equal(test_module._scale_bias(1.0), 1.0)
-    npt.assert_almost_equal(test_module._scale_bias(0.5), 0.5)
-    npt.assert_almost_equal(test_module._scale_bias(2.0), 0.5)
-    npt.assert_almost_equal(test_module._scale_bias(0.25), 0.25)
-    npt.assert_almost_equal(test_module._scale_bias(4.0), 0.25)
+    # Test uniform bias
+    npt.assert_almost_equal(test_module._scale_bias(0.5, "uniform"), 1.0)
+    npt.assert_almost_equal(test_module._scale_bias(1.0, "uniform"), 1.0)
+    npt.assert_almost_equal(test_module._scale_bias(999, "uniform"), 1.0)
+
+    # Test linear bias
+    npt.assert_almost_equal(test_module._scale_bias(1.0, "linear"), 1.0)
+    npt.assert_almost_equal(test_module._scale_bias(0.5, "linear"), 0.5)
+    npt.assert_almost_equal(test_module._scale_bias(2.0, "linear"), 0.5)
+    npt.assert_almost_equal(test_module._scale_bias(0.25, "linear"), 0.25)
+    npt.assert_almost_equal(test_module._scale_bias(4.0, "linear"), 0.25)
+
+    # Test gaussian bias
+    npt.assert_almost_equal(test_module._scale_bias(0.5, "gaussian"), 0.1353352832366127)
+    npt.assert_almost_equal(test_module._scale_bias(1.0, "gaussian"), 1.0)
+    npt.assert_almost_equal(test_module._scale_bias(999, "gaussian"), 0)
+
+    # Test unknown bias
+    nt.assert_raises(
+        ValueError,
+        test_module._scale_bias, 0.5, "UNKNOWN"
+    )
 
 
 def test_score_morphologies_1():
@@ -260,7 +277,9 @@ def test_choose_morphology_1(score_mock, np_random_mock):
     score_mock.configure_mock(**{'return_value': scores})
     test_module.choose_morphology('position', 'rules', 'params', alpha=2.0, segment_type='axon')
     score_mock.assert_called_once_with(
-        'position', 'rules', 'params', segment_type='axon'
+        'position', 'rules', 'params', segment_type='axon',
+        bias_kind='linear',
+        optional_scores_process=test_module.COMPUTE_OPTIONAL_SCORES.COMPUTE_AND_USE
     )
     np.random.choice.assert_called_once()
     npt.assert_equal(np.random.choice.call_args[0][0], ['morph-1', 'morph-2'])
@@ -286,8 +305,16 @@ def test_choose_morphology_3(score_mock, np_random_mock):
     score_mock.configure_mock(**{'return_value': scores})
     test_module.choose_morphology('position', 'rules', 'params', alpha=2.0, scales=[0.5, 2.0])
     score_mock.assert_has_calls([
-        mock.call('position', 'rules', 'params', scale=0.5, segment_type=None),
-        mock.call('position', 'rules', 'params', scale=2.0, segment_type=None),
+        mock.call(
+            'position', 'rules', 'params', scale=0.5, segment_type=None,
+            bias_kind='linear',
+            optional_scores_process=test_module.COMPUTE_OPTIONAL_SCORES.COMPUTE_AND_USE
+        ),
+        mock.call(
+            'position', 'rules', 'params', scale=2.0, segment_type=None,
+            bias_kind='linear',
+            optional_scores_process=test_module.COMPUTE_OPTIONAL_SCORES.COMPUTE_AND_USE
+        ),
     ])
     np.random.choice.assert_called_once()
     nt.assert_equal(
