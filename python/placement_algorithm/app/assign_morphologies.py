@@ -192,13 +192,7 @@ class Master(MasterApp):
         utils.assign_morphologies(self.cells, result)
 
         LOGGER.info("Export CellCollection...")
-        if self.args.out_mvd3:
-            LOGGER.warning('--out-mvd3 option is deprecated. Use --out-cells-path instead.')
-            self.cells.save_mvd3(self.args.out_mvd3)
-        elif self.args.out_cells_path is None:
-            raise ValueError('`--out-cells-path` option is required')
-        else:
-            self.cells.save(self.args.out_cells_path)
+        utils.save_cells(self.cells, self.args.out_cells_path, mvd3_filepath=self.args.out_mvd3)
 
 
 class Worker(WorkerApp):

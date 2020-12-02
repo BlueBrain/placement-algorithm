@@ -51,6 +51,23 @@ def load_cells(filepath, mvd3_filepath=None):
     return CellCollection.load(filepath)
 
 
+def save_cells(cells, filepath, mvd3_filepath=None):
+    """Save CellCollection to file.
+
+    Args:
+        cells (CellCollection): cells to be saved
+        filepath (str): cells file
+        mvd3_filepath (str): MVD3 cells file. Temporary for backward compatibility.
+    """
+    if mvd3_filepath:
+        LOGGER.warning('--out-mvd3 option is deprecated. Use --out-cells-path instead.')
+        cells.save_mvd3(mvd3_filepath)
+    elif filepath is None:
+        raise ValueError('`--out-cells-path` option is required')
+    else:
+        cells.save(filepath)
+
+
 def random_rotation_y(n):
     """
     Random rotation around Y-axis.

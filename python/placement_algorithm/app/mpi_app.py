@@ -68,17 +68,29 @@ class WorkerApp(metaclass=ABCMeta):
         """ Initialize worker task. """
 
     @abstractmethod
-    def __call__(self):
+    def __call__(self, task_id):
         """
         Process task with the given task ID.
 
+        Args:
+            task_id (int): task ID.
+
         Returns:
-            (task_id, result) tuple.
+            final result.
         """
 
 
 def _wrap_worker(_id, worker):
-    '''Wrap the worker job and catch exceptions that must be caught'''
+    """
+    Wrap the worker job and catch exceptions that must be caught.
+
+    Args:
+        _id (int): task ID.
+        worker (WorkerApp): worker instance.
+
+    Returns:
+        (task_id, result) tuple.
+    """
     try:
         return _id, worker(_id)
     except SkipSynthesisError:

@@ -3,8 +3,8 @@
 """
 - launch TMD(?) synthesis in parallel
 - write each synthesized morphology to a separate file
-- assign morphology names to MVD3
-- assign identity cell rotations to MVD3
+- assign morphology names to MVD3/sonata
+- assign identity cell rotations to MVD3/sonata
 - optional axon grafting "on-the-fly"
 """
 
@@ -85,7 +85,10 @@ class Master(MasterApp):
             default=0
         )
         parser.add_argument(
-            "--out-mvd3", help="Path to output MVD3 file", required=True
+            "--out-mvd3", help="Deprecated! Path to output MVD3 file. Use --out-cells-path instead."
+        )
+        parser.add_argument(
+            "--out-cells-path", help="Path to output cells file."
         )
         parser.add_argument(
             "--out-apical", help=("Path to output YAML apical file containing"
@@ -182,7 +185,7 @@ class Master(MasterApp):
 
           - assign 'morphology' property based on workers' result
           - assign 'orientation' property to identity matrix
-          - dump CellCollection to MVD3
+          - dump CellCollection to MVD3/sonata
 
         Args:
             result: A dict {gid -> WorkerResult}
@@ -199,8 +202,8 @@ class Master(MasterApp):
             np.identity(3), (len(self.cells.positions), 3, 3)
         )
 
-        LOGGER.info("Export to MVD3...")
-        self.cells.save_mvd3(self.args.out_mvd3)
+        LOGGER.info("Export CellCollection...")
+        utils.save_cells(self.cells, self.args.out_cells_path, mvd3_filepath=self.args.out_mvd3)
 
         def first_non_None(apical_points):
             '''Returns the first non None apical coordinates'''
