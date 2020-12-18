@@ -6,6 +6,7 @@ The test function should NOT have *test* in the name, or nosetests
 will run it.
 '''
 import shutil
+import tempfile
 from pathlib import Path
 import yaml
 
@@ -62,6 +63,41 @@ def run_mpi():
             assert_allclose(apical_points[k], expected_apical_points[k])
     finally:
         shutil.rmtree(tmp_folder)
+
+@patch('placement_algorithm.app.utils.CellCollection.load_mvd3',
+       MagicMock(return_value=CellCollectionMock()))
+def test_run_no_mpi():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        tmp_folder = Path(tmpdirname)
+
+        args = MagicMock()
+        args.tmd_distributions = DATA / 'distributions.json'
+        args.tmd_parameters = DATA / 'parameters.json'
+        args.morph_axon = None
+        args.seed = 0
+        args.num_files = 12
+        args.max_files_per_dir = 256
+        args.overwrite = True
+        args.out_morph_ext = ['h5', 'swc', 'asc']
+        args.out_morph_dir = tmpdirname
+        args.out_apical = tmp_folder / 'apical.yaml'
+        args.atlas = tmpdirname
+        args.no_mpi = True
+
+        small_O1(tmpdirname)
+        master = tested.Master()
+        worker = master.setup(args)
+        worker.setup(args)
+        result = {k: worker(k) for k in master.task_ids}
+        master.finalize(result)
+        assert_equal(len(list(iter_morphology_files(tmpdirname))), 36)
+        ok_(args.out_apical.exists())
+        with args.out_apical.open() as f, (DATA / 'apical.yaml').open() as expected:
+            apical_points = yaml.load(f, Loader=yaml.FullLoader)
+            expected_apical_points = yaml.load(expected, Loader=yaml.FullLoader)
+        assert_equal(apical_points.keys(), expected_apical_points.keys())
+        for k in apical_points.keys():
+            assert_allclose(apical_points[k], expected_apical_points[k])
 
 
 if __name__ == '__main__':

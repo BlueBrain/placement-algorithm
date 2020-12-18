@@ -143,18 +143,7 @@ def aggregate_strict_score(scores):
     return scores.min(axis=1, skipna=True).fillna(1.0)
 
 
-def _hmean(xs, eps=1e-5):
-    xs = np.asarray(xs)
-    mask = np.isnan(xs)
-    if np.all(mask):
-        return np.nan
-    xs = xs[~mask]
-    if np.any(xs < eps):
-        return 0.0
-    return len(xs) / np.sum(1.0 / xs)
-
-
-def aggregate_optional_score(scores):
+def aggregate_optional_score(scores, eps=1e-5):
     """
     Aggregate optional scores.
 
@@ -166,7 +155,12 @@ def aggregate_optional_score(scores):
     See also:
     https://bbpteam.epfl.ch/documentation/placement-algorithm-1.1/index.html#combining-the-scores
     """
-    return scores.apply(_hmean, axis=1).fillna(1.0)
+    na_scores = scores.isna()
+    have_zeros = (scores < eps).any(axis=1)
+    aggregated_scores = (~na_scores).sum(axis=1) / (1.0 / scores).sum(axis=1)
+    aggregated_scores.loc[have_zeros] = 0
+    aggregated_scores.fillna(1.0, inplace=True)
+    return aggregated_scores
 
 
 def _scale_bias(scale):

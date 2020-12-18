@@ -139,11 +139,12 @@ def test_aggregate_optional_score():
         [0.5, np.nan],
         [0.5,    0.0],
         [0.5,   1e-6],
+        [np.nan, 1e-6],
         [np.nan, np.nan],
-    ], index=list('abcde'))
+    ], index=list('abcdef'))
     assert_series_equal(
         test_module.aggregate_optional_score(scores),
-        pd.Series([0.666667, 0.5, 0.0, 0.0, 1.0], index=scores.index)
+        pd.Series([0.666667, 0.5, 0.0, 0.0, 0.0, 1.0], index=scores.index)
     )
 
 
