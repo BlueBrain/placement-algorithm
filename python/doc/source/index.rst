@@ -47,6 +47,25 @@ We aggregate scores for those differently, penalizing low *strict* score heavier
 
 In the following descriptions we will denote :math:`Y`-interval for a given morphology :math:`M` at a given position :math:`p` according to morphology annotation with :math:`(a^\uparrow, a^\downarrow)`; and :math:`Y`-interval prescribed by a placement rule with :math:`(r^\uparrow, r^\downarrow)`.
 
+
+Common elements
+~~~~~~~~~~~~~~~
+
+Each rule in the :ref:`placement rules <ref-data-rules>` file is grouped into a ``mtype_rule_set`` for a given *mtype*. Example:
+
+.. code-block:: xml
+
+    <mtype_rule_set mtype="L2_TPC:A">
+      <rule id="L2_TPC:A, dendrite, Layer_1"  type="region_target" segment_type="dendrite" y_min_layer="L1" y_min_fraction="0.00" y_max_layer="L1" y_max_fraction="1.00" />
+      <rule id="L2_TPC:A, axon, Layer_5"  type="region_target" segment_type="axon" y_min_layer="L1" y_min_fraction="0.00" y_max_layer="L5" y_max_fraction="1.00" />
+    </mtype_rule_set>
+
+Each rule has the following common elements:
+
+- ``id`` is an unique string label of a rule
+- ``type`` specifies the *type* of the rule, as described below; must be  ``below``, ``region_target`` or ``region_occupy``.
+- ``segment-type`` [likely deprecated] describes the segment the rule applies to; must be ``axon`` or ``dendrite``
+
 Strict rules
 ~~~~~~~~~~~~
 
@@ -195,13 +214,13 @@ Parameters
     --mvd3                Path to input MVD3 file [deprecated: use --cells-path instead]
     --cells-path          Path to a file storing cells collection [required]
     --morphdb             Path to MorphDB file [required]
-    --atlas               Atlas URL [required]
+    --atlas               Atlas URL containing the ``[PHx]`` files; ``x`` denote the layer as defined in the placement rules file [required]
     --atlas-cache         Atlas cache folder [optional, default: None]
     --annotations         Path to JSON file with compacted annotations [required]
     --rules               Path to placement rules file [required]
     --segment-type        Segment type to consider (if not specified, consider both) [optional, choices: ['axon', 'dendrite']]
-    --alpha               Use `score ** alpha` as morphology choice probability [optional, default: 1.0]
-    --scales              Scale(s) to check [optional, default: None]
+    --alpha               Exponential factor :math:`\alpha` for scores, see above [optional, default: 1.0]
+    --scales              Scale(s) to check (scaling factors along the Y axis) [optional, default: None]
     --seed                Random number generator seed [optional, default: 0]
     --output              Path to output TSV file [required]
     --no-mpi              Do not use MPI and run everything on a single core [optional]
