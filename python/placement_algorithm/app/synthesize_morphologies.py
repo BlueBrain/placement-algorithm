@@ -346,8 +346,13 @@ class Worker(WorkerApp):
         if axon_morph is not None:
             graft_axon(results.neuron, axon_morph)
 
+        apical_points = [
+            results.neuron.sections[apical_section].points[-1]
+            for apical_section in results.apical_sections
+        ]
+
         return WorkerResult(name=self.morph_writer(results.neuron, seed=seed),
-                            apical_points=results.apical_points)
+                            apical_points=apical_points)
 
 
 def main():

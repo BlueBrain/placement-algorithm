@@ -61,7 +61,7 @@ def run_mpi():
             expected_apical_points = yaml.load(expected, Loader=yaml.FullLoader)
         assert_equal(apical_points.keys(), expected_apical_points.keys())
         for k in apical_points.keys():
-            assert_allclose(apical_points[k], expected_apical_points[k])
+            assert_allclose(apical_points[k], expected_apical_points[k], rtol=1e-6)
     finally:
         shutil.rmtree(tmp_folder)
 
@@ -98,7 +98,7 @@ def test_run_no_mpi():
             expected_apical_points = yaml.load(expected, Loader=yaml.FullLoader)
         assert_equal(apical_points.keys(), expected_apical_points.keys())
         for k in apical_points.keys():
-            assert_allclose(apical_points[k], expected_apical_points[k])
+            assert_allclose(apical_points[k], expected_apical_points[k], rtol=1e-6)
 
 
 def test_parser():
