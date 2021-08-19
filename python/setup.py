@@ -18,7 +18,7 @@ APP_EXTRAS = [
 
 SYNTHESIS_EXTRAS = [
     'region-grower>=0.1.11,<0.2',
-    'tns',
+    'tns<2.4',
 ]
 
 MPI_EXTRAS = [
