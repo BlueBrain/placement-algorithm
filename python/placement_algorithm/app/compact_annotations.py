@@ -47,7 +47,7 @@ def main():
 
     annotations = _collect_annotations(args.annotation_dir, args.morphdb)
 
-    with open(args.output, 'w') as f:
+    with open(args.output, 'w', encoding="utf-8") as f:
         json.dump(annotations, f, indent=2)
 
 

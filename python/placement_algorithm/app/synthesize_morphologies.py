@@ -9,6 +9,7 @@
 """
 
 import argparse
+import warnings
 from typing import Dict, Optional
 
 import yaml
@@ -229,7 +230,7 @@ class Master(MasterApp):
                     return coord.tolist()
             return None
 
-        with open(self.args.out_apical, 'w') as apical_file:
+        with open(self.args.out_apical, 'w', encoding="utf-8") as apical_file:
             yaml.dump({item.name: first_non_None(item.apical_points)
                        for item in result.values() if item is not None},
                       apical_file)
@@ -240,6 +241,10 @@ class Worker(WorkerApp):
     def __init__(self, morph_writer):
         self.morph_writer = morph_writer
         self.max_synthesis_attempts_count = 10
+
+        warnings.warn(
+            "The synthesize_morphologies app is deprecated, use the region-grower package instead",
+        )
 
     def setup(self, args):
         """
