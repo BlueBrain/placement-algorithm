@@ -21,7 +21,6 @@ Worker nodes (MPI_RANK > 0):
 from abc import ABCMeta, abstractmethod
 import sys
 
-from placement_algorithm.exceptions import SkipSynthesisError
 from placement_algorithm.logger import LOGGER
 
 
@@ -93,8 +92,6 @@ def _wrap_worker(_id, worker):
     """
     try:
         return _id, worker(_id)
-    except SkipSynthesisError:
-        return _id, None
     except Exception as e:
         LOGGER.error("Task #%d failed", _id)
         raise e

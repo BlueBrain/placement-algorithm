@@ -7,18 +7,13 @@ from setuptools import setup, find_packages
 VERSION = imp.load_source("", "placement_algorithm/version.py").__version__
 
 APP_EXTRAS = [
-    'morphio>=2.0.5',
-    'morph-tool>=0.2.10',
-    'neuroc',
-    'neurom>=2.0.1',
+    'morphio>=3.0',
+    'morph-tool>=2.9.0,<3.0',
+    'neuroc>=0.2.8,<1.0',
+    'neurom>=3.0,<4.0',
     'tqdm>=4.0',
-    'voxcell>=2.7',
+    'voxcell>=2.7,<4.0',
     'dask[distributed,bag]>=2.15.0',
-]
-
-SYNTHESIS_EXTRAS = [
-    'region-grower>=0.1.11,<0.2',
-    'tns<2.4',
 ]
 
 MPI_EXTRAS = [
@@ -41,9 +36,8 @@ setup(
     ],
     extras_require={
         'app': APP_EXTRAS,
-        'synthesis': SYNTHESIS_EXTRAS,
         'mpi': MPI_EXTRAS,
-        'all': APP_EXTRAS + SYNTHESIS_EXTRAS + MPI_EXTRAS
+        'all': APP_EXTRAS + MPI_EXTRAS
     },
     packages=find_packages(),
     python_requires='>=3.6',
@@ -54,7 +48,6 @@ setup(
           'compact-annotations=placement_algorithm.app.compact_annotations:main',
           'dump-profiles=placement_algorithm.app.dump_profiles:main',
           'score-morphologies=placement_algorithm.app.score_morphologies:main',
-          'synthesize-morphologies=placement_algorithm.app.synthesize_morphologies:main',
       ]
     },
     classifiers=[
