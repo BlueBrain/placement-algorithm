@@ -1,10 +1,11 @@
-import mock
-from nose.tools import assert_dict_equal, assert_raises
+import unittest.mock as mock
 from pathlib import Path
 from tempfile import TemporaryDirectory
+
+import pytest
 import yaml
 
-from mock import patch, Mock
+from unittest.mock import patch, Mock
 
 import placement_algorithm.app.mpi_app as test_module
 
@@ -16,11 +17,13 @@ class DummyParser:
     no_mpi = False
     out = None
 
+
 class DummyWorkerApp(test_module.WorkerApp):
     def setup(self, args):
         pass
     def __call__(self, gid):
         return 11 * gid
+
 
 def get_dummy_app(args):
     '''Returns a class whose static method pass_args return value can be specified
@@ -46,6 +49,7 @@ def get_dummy_app(args):
             return DummyWorkerApp()
     return DummyMasterApp
 
+
 def test_run_master_no_mpi():
     with TemporaryDirectory() as folder:
         args = DummyParser()
@@ -53,8 +57,7 @@ def test_run_master_no_mpi():
         args.no_mpi = True
         test_module.run(get_dummy_app(args))
         with args.out.open() as f:
-            assert_dict_equal(yaml.load(f, Loader=yaml.FullLoader),
-                              {1: 11, 2: 22})
+            assert yaml.safe_load(f) == {1: 11, 2: 22}
 
 
 @patch('mpi4py.MPI.COMM_WORLD')
@@ -68,8 +71,7 @@ def test_run_master(COMM):
         args.out = Path(folder, 'result.yaml')
         test_module.run(get_dummy_app(args))
         with args.out.open() as f:
-            assert_dict_equal(yaml.load(f, Loader=yaml.FullLoader),
-                              {1: 11, 2: 22})
+            assert yaml.safe_load(f) == {1: 11, 2: 22}
 
 
 @patch('mpi4py.MPI.COMM_WORLD')
@@ -94,7 +96,6 @@ def test_run_worker(COMM):
 def test_run_invalid_allocation(COMM):
     COMM.Get_size.return_value = 1
     args = DummyParser()
-    assert_raises(
-        RuntimeError,
-        test_module.run, get_dummy_app(args)
-    )
+    app = get_dummy_app(args)
+    with pytest.raises(RuntimeError):
+        test_module.run(app)

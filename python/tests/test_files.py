@@ -1,11 +1,12 @@
 import os
 
 import lxml.etree
-import mock
-import nose.tools as nt
+import unittest.mock as mock
 import numpy as np
 import pandas as pd
-from mock import patch
+from unittest.mock import patch
+
+import pytest
 from pandas.testing import assert_frame_equal
 
 import placement_algorithm.files as test_module
@@ -22,24 +23,24 @@ def _test_data_path(filename):
 def test_placement_rules_parse(logger):
     rules = test_module.PlacementRules(_test_data_path('rules.xml'))
     logger.warning.assert_called_once_with(mock.ANY, 'prefer_unscaled')
-    nt.assert_equal(
-        sorted(rules.common_rules),
+    assert (
+        sorted(rules.common_rules) ==
         ['L1_axon_hard_limit', 'L1_hard_limit']
     )
-    nt.assert_equal(
-        sorted(rules.mtype_rules),
+    assert (
+        sorted(rules.mtype_rules) ==
         ['L1_HAC', 'L1_SAC']
     )
     mtype_rules = rules.mtype_rules['L1_HAC']
-    nt.assert_equal(
-        sorted(mtype_rules),
+    assert (
+        sorted(mtype_rules) ==
         ['L1_axon_hard_limit', 'L1_hard_limit', 'axon, Layer_1', 'axon, Layer_1, fill']
     )
-    nt.assert_is_instance(mtype_rules['L1_axon_hard_limit'], test_module.BelowRule)
-    nt.assert_is_instance(mtype_rules['L1_hard_limit'], test_module.BelowRule)
-    nt.assert_is_instance(mtype_rules['axon, Layer_1'], test_module.RegionTargetRule)
-    nt.assert_is_instance(mtype_rules['axon, Layer_1, fill'], test_module.RegionOccupyRule)
-    nt.assert_equal(rules.layer_names, set(['1', '2']))
+    assert isinstance(mtype_rules['L1_axon_hard_limit'], test_module.BelowRule)
+    assert isinstance(mtype_rules['L1_hard_limit'], test_module.BelowRule)
+    assert isinstance(mtype_rules['axon, Layer_1'], test_module.RegionTargetRule)
+    assert isinstance(mtype_rules['axon, Layer_1, fill'], test_module.RegionOccupyRule)
+    assert rules.layer_names == {'1', '2'}
 
 
 def test_placement_rules_empty():
@@ -48,8 +49,8 @@ def test_placement_rules_empty():
     </placement_rules>
     """)
     common_rules, mtype_rules = test_module._parse_rules(etree)
-    nt.assert_false(common_rules)
-    nt.assert_false(mtype_rules)
+    assert not common_rules
+    assert not mtype_rules
 
 
 def test_placement_rules_duplicate_global_rules():
@@ -59,10 +60,8 @@ def test_placement_rules_duplicate_global_rules():
         <global_rule_set />
     </placement_rules>
     """)
-    nt.assert_raises(
-        PlacementError,
-        test_module._parse_rules, etree
-    )
+    with pytest.raises(PlacementError):
+        test_module._parse_rules(etree)
 
 
 def test_placement_rules_duplicate_mtype_rules():
@@ -72,10 +71,8 @@ def test_placement_rules_duplicate_mtype_rules():
         <mtype_rule_set mtype="B|C" />
     </placement_rules>
     """)
-    nt.assert_raises(
-        PlacementError,
-        test_module._parse_rules, etree
-    )
+    with pytest.raises(PlacementError):
+        test_module._parse_rules(etree)
 
 
 def test_placement_rules_duplicate_rule_id():
@@ -85,10 +82,8 @@ def test_placement_rules_duplicate_rule_id():
         <rule id="id-1" type="below" segment_type="axon" y_layer="1" y_fraction="1.0"/>
     </rule_set>
     """)
-    nt.assert_raises(
-        PlacementError,
-        test_module._parse_rule_set, elem
-    )
+    with pytest.raises(PlacementError):
+        test_module._parse_rule_set(elem)
 
 
 @patch(test_module.__name__ + ".LOGGER")
@@ -118,18 +113,18 @@ def test_placement_rules_bind(logger):
         columns=[['L1_hard_limit', 'L1_axon_hard_limit'], ['y_max', 'y_max']]
     )
     mtype_rules, params = rules.bind(annotations, 'undefined-mtype')
-    nt.assert_equal(
-        sorted(mtype_rules.keys()),
+    assert (
+        sorted(mtype_rules.keys()) ==
         ['L1_axon_hard_limit', 'L1_hard_limit']
     )
     assert_frame_equal(params, expected)
     mtype_rules, params = rules.bind(annotations, 'L1_SAC')
-    nt.assert_equal(
-        sorted(mtype_rules.keys()),
+    assert (
+        sorted(mtype_rules.keys()) ==
         ['L1_axon_hard_limit', 'L1_hard_limit', 'axon, Layer_1', 'axon, Layer_1, fill']
     )
-    nt.assert_equal(
-        sorted(params.columns),
+    assert (
+        sorted(params.columns) ==
         [
             ('L1_axon_hard_limit', 'y_max'),
             ('L1_hard_limit', 'y_max'),
@@ -162,7 +157,7 @@ def test_parse_annotations():
         },
         'ScaleBias': {}
     }
-    nt.assert_equal(actual, expected)
+    assert actual == expected
 
 
 @patch('lxml.etree.parse')
@@ -174,10 +169,8 @@ def test_annotations_duplicate_rule_id(etree_mock):
     </annotations>
     """)
     etree_mock.configure_mock(return_value=etree)
-    nt.assert_raises(
-        PlacementError,
-        test_module.parse_annotations, None
-    )
+    with pytest.raises(PlacementError):
+        test_module.parse_annotations(None)
 
 
 def test_parse_morphdb():

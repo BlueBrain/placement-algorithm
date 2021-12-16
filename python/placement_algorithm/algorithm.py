@@ -30,11 +30,11 @@ def y_absolute(y_rel, position):
     return (1.0 - fraction) * y0 + fraction * y1
 
 
-class Rule(object):
+class Rule:
     """ Base class for rule functors. """
     def __init__(self, segment_type, strict):
         if segment_type not in ('axon', 'dendrite'):
-            raise ValueError("Invalid segment type: '%s'" % segment_type)
+            raise ValueError(f"Invalid segment type: '{segment_type}'")
         self.segment_type = segment_type
         self.strict = strict
 

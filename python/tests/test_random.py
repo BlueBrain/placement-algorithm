@@ -1,5 +1,5 @@
-import nose.tools as nt
 import numpy as np
+import pytest
 from numpy.testing import assert_almost_equal
 
 import placement_algorithm.random as test_module
@@ -48,5 +48,7 @@ def test_parse_distr_string():
 
 
 def test_parse_distr_raises():
-    nt.assert_raises(KeyError, test_module.parse_distr, ("norm", {"loc": 2}))
-    nt.assert_raises(AttributeError, test_module.parse_distr, ("foo", None))
+    with pytest.raises(KeyError):
+        test_module.parse_distr(("norm", {"loc": 2}))
+    with pytest.raises(AttributeError):
+        test_module.parse_distr(("foo", None))

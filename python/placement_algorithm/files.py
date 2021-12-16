@@ -26,7 +26,7 @@ def _parse_rule_set(group):
     for elem in group.findall('rule'):
         rule_id = elem.attrib['id']
         if rule_id in result:
-            raise PlacementError("Duplicate rule '%s'" % rule_id)
+            raise PlacementError(f"Duplicate rule '{rule_id}'")
         rule_type = elem.attrib['type']
         if rule_type in DISPATCH_RULES:
             result[rule_id] = DISPATCH_RULES[rule_type].from_xml(elem)
@@ -49,7 +49,7 @@ def _parse_rules(etree):
     for elem in etree.findall('mtype_rule_set'):
         for mtype in elem.attrib['mtype'].split("|"):
             if mtype in mtype_rules:
-                raise PlacementError("Duplicate <mtype_rule_set> for mtype '%s'" % mtype)
+                raise PlacementError(f"Duplicate <mtype_rule_set> for mtype '{mtype}'")
             mtype_rules[mtype] = _parse_rule_set(elem)
             mtype_rules[mtype].update(common_rules)
 
@@ -66,7 +66,7 @@ def _collect_layer_names(etree):
     return result
 
 
-class PlacementRules(object):
+class PlacementRules:
     """
     Access to placement rules XML
 
@@ -125,7 +125,7 @@ def parse_annotations(filepath):
         attr = dict(elem.attrib)
         rule_id = attr.pop('rule')
         if rule_id in result:
-            raise PlacementError("Duplicate annotation for rule '%s'" % rule_id)
+            raise PlacementError(f"Duplicate annotation for rule '{rule_id}'")
         result[rule_id] = attr
     return result
 

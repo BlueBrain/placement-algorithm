@@ -52,7 +52,7 @@ def main():
 
     layer_names = args.layer_names.split(',')
     for dset in itertools.chain(['y'], layer_names):
-        atlas.load_data('[PH]%s' % dset, memcache=True)
+        atlas.load_data(f'[PH]{dset}', memcache=True)
 
     for gid in gids:
         profile = get_layer_profile(cells.positions[gid], atlas, layer_names)

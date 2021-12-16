@@ -80,9 +80,9 @@ def get_layer_profile(xyz, atlas, layer_names):
     result = {}
     result['y'] = atlas.load_data('[PH]y').lookup(xyz)
     for layer in layer_names:
-        y0, y1 = atlas.load_data('[PH]%s' % layer).lookup(xyz)
-        result['%s_0' % layer] = y0
-        result['%s_1' % layer] = y1
+        y0, y1 = atlas.load_data(f'[PH]{layer}').lookup(xyz)
+        result[f'{layer}_0'] = y0
+        result[f'{layer}_1'] = y1
     return result
 
 
@@ -130,14 +130,14 @@ def check_na_morphologies(morph_list, mtypes, threshold=None):
         if threshold is not None:
             exceeded = (0.01 * stats['ratio, %'] > threshold)
             if exceeded.any():
+                ratio = 100.0 * threshold
+                failed_mtypes = ", ".join(exceeded[exceeded].index)
                 raise RuntimeError(
-                    "Max N/A ratio (%.1f%%) exceeded for mtype(s): %s" % (
-                        100.0 * threshold, ", ".join(exceeded[exceeded].index)
-                    )
+                    f"Max N/A ratio ({ratio:.1f}%) exceeded for mtype(s): {failed_mtypes}"
                 )
 
 
-class MorphWriter(object):
+class MorphWriter:
     """ Helper class for writing morphologies. """
     def __init__(self, output_dir, file_ext):
         self.output_dir = os.path.realpath(output_dir)
@@ -170,7 +170,7 @@ class MorphWriter(object):
         if depth <= 0:
             return
         for sub in range(256):
-            MorphWriter._make_subdirs(os.path.join(dirpath, "%02x" % sub), depth - 1)
+            MorphWriter._make_subdirs(os.path.join(dirpath, f"{sub:02x}"), depth - 1)
 
     def prepare(self, num_files, max_files_per_dir=None, overwrite=False):
         """
@@ -184,7 +184,7 @@ class MorphWriter(object):
         )
         if os.path.exists(self.output_dir):
             if not overwrite and os.listdir(self.output_dir):
-                raise RuntimeError("Non-empty morphology output folder '%s'" % self.output_dir)
+                raise RuntimeError(f"Non-empty morphology output folder '{self.output_dir}'")
         else:
             os.makedirs(self.output_dir)
         if self._dir_depth is not None:

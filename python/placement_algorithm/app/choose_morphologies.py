@@ -23,7 +23,7 @@ from placement_algorithm.logger import LOGGER
 def _fetch_atlas_data(atlas, layer_names, memcache=False):
     """ Fetch '[PH]' datasets to disk; cache in memory if requested. """
     for dset in itertools.chain(['y'], layer_names):
-        dset = '[PH]%s' % dset
+        dset = f'[PH]{dset}'
         if memcache:
             atlas.load_data(dset, memcache=True)
         else:
@@ -48,9 +48,7 @@ def _check_has_metypes(morphdb, traits):
     required = _unique_values(traits, key_columns)
     missing = required - _unique_values(morphdb, key_columns)
     if missing:
-        raise RuntimeError("""
-            Missing m(e)types in (ext)neurondb.dat: [%s]
-        """ % sorted(missing))
+        raise RuntimeError(f"Missing m(e)types in (ext)neurondb.dat: [{sorted(missing)}]")
 
 
 def _bind_annotations(annotations, morphdb, rules):

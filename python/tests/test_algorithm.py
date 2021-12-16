@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 
-import mock
-import nose.tools as nt
+import unittest.mock as mock
 import numpy.testing as npt
+import pytest
 from pandas.testing import assert_frame_equal, assert_series_equal
 
 
@@ -13,14 +13,12 @@ import placement_algorithm.algorithm as test_module
 def test_y_absolute():
     position = {'L1_0': 0, 'L1_1': 100}
     actual = test_module.y_absolute(('L1', 0.25), position)
-    nt.assert_equal(actual, 25)
+    assert actual == 25
 
 
 def test_invalid_segment_type():
-    nt.assert_raises(
-        ValueError,
-        test_module.Rule, segment_type='soma', strict=True
-    )
+    with pytest.raises(ValueError):
+        test_module.Rule(segment_type='soma', strict=True)
 
 
 def test_below_rule_create():
@@ -31,11 +29,11 @@ def test_below_rule_create():
         'segment_type': 'axon'
     })
     rule = test_module.BelowRule.from_xml(elem)
-    nt.assert_equal(rule.y_rel, ('L1', 0.5))
-    nt.assert_equal(rule.tolerance, 50.0)
-    nt.assert_true(rule.strict)
-    nt.assert_equal(rule.segment_type, 'axon')
-    nt.assert_equal(rule.ANNOTATION_PARAMS, ['y_max'])
+    assert rule.y_rel == ('L1', 0.5)
+    assert rule.tolerance == 50.0
+    assert rule.strict
+    assert rule.segment_type == 'axon'
+    assert rule.ANNOTATION_PARAMS == ['y_max']
 
 
 def test_below_rule():
@@ -61,11 +59,11 @@ def test_region_target_rule_create():
         'segment_type': 'dendrite'
     })
     rule = test_module.RegionTargetRule.from_xml(elem)
-    nt.assert_equal(rule.y_rel_min, ('L1', 0.0))
-    nt.assert_equal(rule.y_rel_max, ('L1', 0.5))
-    nt.assert_false(rule.strict)
-    nt.assert_equal(rule.segment_type, 'dendrite')
-    nt.assert_equal(rule.ANNOTATION_PARAMS, ['y_min', 'y_max'])
+    assert rule.y_rel_min == ('L1', 0.0)
+    assert rule.y_rel_max == ('L1', 0.5)
+    assert not rule.strict
+    assert rule.segment_type == 'dendrite'
+    assert rule.ANNOTATION_PARAMS == ['y_min', 'y_max']
 
 
 def test_region_target_rule_1():
@@ -174,10 +172,8 @@ def test_scale_bias():
     npt.assert_almost_equal(test_module._scale_bias(999, "gaussian"), 0)
 
     # Test unknown bias
-    nt.assert_raises(
-        ValueError,
-        test_module._scale_bias, 0.5, "UNKNOWN"
-    )
+    with pytest.raises(ValueError):
+        test_module._scale_bias(scale=0.5, kind="UNKNOWN")
 
 
 def test_score_morphologies_1():
@@ -293,7 +289,7 @@ def test_choose_morphology_2(score_mock):
     }, index=['morph-1', 'morph-2'])
     score_mock.configure_mock(**{'return_value': scores})
     actual = test_module.choose_morphology(mock.ANY, mock.ANY, mock.ANY, alpha=2.0)
-    nt.assert_is_none(actual)
+    assert actual is None
 
 
 @mock.patch('numpy.random')
@@ -317,8 +313,8 @@ def test_choose_morphology_3(score_mock, np_random_mock):
         ),
     ])
     np.random.choice.assert_called_once()
-    nt.assert_equal(
-        sorted(np.random.choice.call_args[0][0]),
+    assert (
+        sorted(np.random.choice.call_args[0][0]) ==
         [('morph-1', 0.5), ('morph-1', 2.0), ('morph-2', 0.5), ('morph-2', 2.0)]
     )
 
@@ -330,4 +326,4 @@ def test_choose_morphology_4(score_mock):
     }, index=['morph-1', 'morph-2'])
     score_mock.configure_mock(**{'return_value': scores})
     actual = test_module.choose_morphology(mock.ANY, mock.ANY, mock.ANY, alpha=2.0, scales=[0.5, 2.0])
-    nt.assert_is_none(actual)
+    assert actual is None

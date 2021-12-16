@@ -3,14 +3,14 @@ import shutil
 import tempfile
 from pathlib import Path
 
-import mock
-import nose.tools as nt
+import unittest.mock as mock
 import numpy as np
 import pandas as pd
+import pytest
 from pandas.testing import assert_frame_equal
 
 from contextlib import contextmanager
-from mock import patch, Mock
+from unittest.mock import patch, Mock
 
 from voxcell import CellCollection
 
@@ -33,8 +33,8 @@ def test_get_layer_profile():
         'B_0': 'B0_value',
         'B_1': 'B1_value',
     }
-    nt.assert_equal(
-        test_module.get_layer_profile(xyz, atlas, layers),
+    assert (
+        test_module.get_layer_profile(xyz, atlas, layers) ==
         expected
     )
     atlas.assert_has_calls([
@@ -98,11 +98,8 @@ def test_dump_load_morphology_list_3():
     })
     with tempcwd():
         test_module.dump_morphology_list(original, 'morph_list.tsv')
-        nt.assert_raises(
-            RuntimeError,  # GIDs mismatch
-            test_module.load_morphology_list,
-            'morph_list.tsv', check_gids=range(5)
-        )
+        with pytest.raises(RuntimeError, match="Morphology list GIDs mismatch"):
+            test_module.load_morphology_list('morph_list.tsv', check_gids=range(5))
 
 
 @patch(__name__ + '.test_module.LOGGER')
@@ -113,11 +110,8 @@ def test_check_na_morphologies(logger):
     mtypes = pd.Series([
         'mtype-A', 'mtype-A', 'mtype-C'
     ])
-    nt.assert_raises(
-        RuntimeError,  # Max N/A ratio exceeded
-        test_module.check_na_morphologies,
-        morph_list, mtypes, threshold=0.1
-    )
+    with pytest.raises(RuntimeError, match="Max N/A ratio .* exceeded for mtype"):
+        test_module.check_na_morphologies(morph_list, mtypes, threshold=0.1)
     logger.warning.assert_called_with(mock.ANY, 1)
     logger.info.assert_called_with(
         mock.ANY,
@@ -164,34 +158,27 @@ def test_load_cells_mvd3(load_mvd3_mock, load_mock):
     load_mock.assert_not_called()
 
 
-class TestMorphWriter(object):
+class TestMorphWriter:
     def setup(self):
         self.test_obj = test_module.MorphWriter('/root', ['asc', 'swc'])
 
     def test_calc_dir_depth(self):
-        nt.assert_is_none(
-            test_module.MorphWriter._calc_dir_depth(2 ** 20)
-        )
-        nt.assert_equal(
-            test_module.MorphWriter._calc_dir_depth(2 ** 20, max_files_per_dir=256),
-            2
-        )
-        nt.assert_raises(
-            RuntimeError,  # too few files per folder
-            test_module.MorphWriter._calc_dir_depth,
-            2 ** 20, max_files_per_dir=100
-        )
-        nt.assert_raises(
-            RuntimeError,  # too many intermediate folders
-            test_module.MorphWriter._calc_dir_depth,
-            2 ** 40, max_files_per_dir=256
-        )
+        assert test_module.MorphWriter._calc_dir_depth(2 ** 20) is None
+        assert test_module.MorphWriter._calc_dir_depth(2 ** 20, max_files_per_dir=256) == 2
+        with pytest.raises(
+                RuntimeError, match="Less than 256 files per folder is too restrictive."
+        ):
+            test_module.MorphWriter._calc_dir_depth(2 ** 20, max_files_per_dir=100)
+        with pytest.raises(
+                RuntimeError, match="More than three intermediate folders is a bit too much."
+        ):
+            test_module.MorphWriter._calc_dir_depth(2 ** 40, max_files_per_dir=256)
 
     @patch('os.path.exists', return_value=False)
     @patch('os.mkdir')
     def test_make_subdirs(self, os_mkdir, _):
         test_module.MorphWriter._make_subdirs('/root', depth=1)
-        nt.assert_equal(os_mkdir.call_count, 257)
+        assert os_mkdir.call_count == 257
         os_mkdir.assert_has_calls([
             mock.call('/root'),
             mock.call('/root/00'),
@@ -206,29 +193,26 @@ class TestMorphWriter(object):
     @patch('os.makedirs')
     def test_prepare_1(self, os_makedirs, _):
         self.test_obj.prepare(2 ** 10)
-        nt.assert_is_none(self.test_obj._dir_depth)
+        assert self.test_obj._dir_depth is None
         os_makedirs.assert_called_once_with('/root')
 
     @patch('os.path.exists', return_value=True)
     @patch('os.listdir', return_value=[])
     def test_prepare_2(self, _, _2):
         self.test_obj.prepare(2 ** 10)
-        nt.assert_is_none(self.test_obj._dir_depth)
+        assert self.test_obj._dir_depth is None
 
     @patch('os.path.exists', return_value=True)
     @patch('os.listdir', return_value=['a'])
     def test_prepare_3(self, _, _2):
-        nt.assert_raises(
-            RuntimeError,  # non-empty morphology output folder
-            self.test_obj.prepare,
-            2 ** 10
-        )
+        with pytest.raises(RuntimeError, match="Non-empty morphology output folder"):
+            self.test_obj.prepare(2 ** 10)
 
     @patch('os.path.exists', return_value=True)
     @patch('os.listdir', return_value=['a'])
     def test_prepare_4(self, _, _2):
         self.test_obj.prepare(2 ** 10, overwrite=True)
-        nt.assert_is_none(self.test_obj._dir_depth)
+        assert self.test_obj._dir_depth is None
 
     @patch('os.path.exists', return_value=True)
     @patch('os.listdir', return_value=[])
@@ -242,16 +226,14 @@ class TestMorphWriter(object):
 
     def test_generate_name_1(self):
         self.test_obj._dir_depth = None
-        nt.assert_equal(
-            self.test_obj._generate_name(42),
-            ('bdd640fb06671ad11c80317fa3b1799d', '')
+        assert (
+            self.test_obj._generate_name(42) == ('bdd640fb06671ad11c80317fa3b1799d', '')
         )
 
     def test_generate_name_2(self):
         self.test_obj._dir_depth = 2
-        nt.assert_equal(
-            self.test_obj._generate_name(42),
-            ('bdd640fb06671ad11c80317fa3b1799d', 'hashed/bd/d6')
+        assert (
+            self.test_obj._generate_name(42) == ('bdd640fb06671ad11c80317fa3b1799d', 'hashed/bd/d6')
         )
 
     @patch('morphio.mut.Morphology')
@@ -259,7 +241,7 @@ class TestMorphWriter(object):
         import morphio
         self.test_obj._dir_depth = 2
         path = self.test_obj('morph-obj', 42)
-        nt.assert_equal(path, 'hashed/bd/d6/bdd640fb06671ad11c80317fa3b1799d')
+        assert path == 'hashed/bd/d6/bdd640fb06671ad11c80317fa3b1799d'
         morph_cls.assert_has_calls([
             mock.call('morph-obj', options=morphio.Option.nrn_order),
             mock.call().write(Path('/root/hashed/bd/d6/bdd640fb06671ad11c80317fa3b1799d.asc')),

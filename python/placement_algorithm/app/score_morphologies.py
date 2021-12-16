@@ -82,7 +82,7 @@ def main():
 
         morphologies = _list_morphologies(morphdb, mtype=mtype, etype=etype, layer=layer)
         if len(morphologies) < 1:
-            raise RuntimeError("No morphologies found for %s" % profile)
+            raise RuntimeError(f"No morphologies found for {profile}")
 
         annotations = {
             m: all_annotations[m] for m in morphologies
