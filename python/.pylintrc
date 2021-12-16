@@ -1,5 +1,16 @@
 [MESSAGES CONTROL]
-disable=bad-continuation,fixme,invalid-name,len-as-condition,no-else-return,useless-object-inheritance,duplicate-code,import-outside-toplevel,unspecified-encoding
+disable=
+    bad-continuation,
+    fixme,
+    invalid-name,
+    len-as-condition,
+    no-else-return,
+    useless-object-inheritance,
+    duplicate-code,
+    import-outside-toplevel,
+    unspecified-encoding,
+    consider-using-f-string
+    # FIXME: fix the code and remove unneeded rules
 
 [FORMAT]
 # Maximum number of characters on a single line.

@@ -6,7 +6,6 @@ from pathlib import Path
 import mock
 import nose.tools as nt
 import numpy as np
-import numpy.testing as npt
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
@@ -16,52 +15,6 @@ from mock import patch, Mock
 from voxcell import CellCollection
 
 import placement_algorithm.app.utils as test_module
-
-
-def test_random_rotation_y_1():
-    np.random.seed(42)
-    expected = [
-        [
-            [ 0.7050606, 0., -0.709147 ],
-            [ 0.       , 1.,  0.       ],
-            [ 0.709147 , 0.,  0.7050606],
-        ]
-    ]
-    npt.assert_almost_equal(
-        test_module.random_rotation_y(1),
-        expected
-    )
-
-
-def test_random_rotation_y_2():
-    np.random.seed(42)
-    expected = [
-        [
-            [ 0.7050606, 0., -0.709147 ],
-            [ 0.       , 1.,  0.       ],
-            [ 0.709147 , 0.,  0.7050606],
-        ],
-        [
-            [-0.9524338, 0.,  0.3047454],
-            [ 0.       , 1.,  0.       ],
-            [-0.3047454, 0., -0.9524338],
-        ],
-    ]
-    npt.assert_almost_equal(
-        test_module.random_rotation_y(2),
-        expected
-    )
-
-
-def test_multiply_matrices():
-    np.random.seed(42)
-    As = np.random.random((2, 3, 3))
-    Bs = np.random.random((2, 3, 3))
-    expected = [np.dot(A, B) for A, B in zip(As, Bs)]
-    npt.assert_almost_equal(
-        test_module.multiply_matrices(As, Bs),
-        expected
-    )
 
 
 def test_get_layer_profile():

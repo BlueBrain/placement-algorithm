@@ -1,0 +1,86 @@
+%YAML 1.1
+---
+$schema: 'http://json-schema.org/draft-07/schema#'
+$id: 'rotations.yaml'
+type: object
+additionalProperties: false
+minProperties: 1
+properties:
+  rotations:
+    type: array
+    uniqueItems: true
+    minItems: 1
+    items:
+      oneOf:
+        - $ref: '#/$defs/rotation_by_query'
+        - $ref: '#/$defs/no_rotation_by_query'
+  default_rotation:
+    oneOf:
+      - $ref: '#/$defs/rotation_by_default'
+      - $ref: '#/$defs/no_rotation_by_default'
+
+$defs:
+  rotation_by_query:
+    type: object
+    additionalProperties: false
+    required:
+      - query
+      - distr
+      - axis
+    properties:
+      query:
+        $ref: '#/$defs/query'
+      distr:
+        $ref: '#/$defs/distr'
+      axis:
+        $ref: '#/$defs/axis'
+  rotation_by_default:
+    type: object
+    additionalProperties: false
+    required:
+      - distr
+      - axis
+    properties:
+      distr:
+        $ref: '#/$defs/distr'
+      axis:
+        $ref: '#/$defs/axis'
+  no_rotation_by_query:
+    type: object
+    additionalProperties: false
+    required:
+      - query
+      - distr
+    properties:
+      query:
+        $ref: '#/$defs/query'
+      distr:
+        type: 'null'
+  no_rotation_by_default:
+    type: object
+    additionalProperties: false
+    required:
+      - distr
+    properties:
+      distr:
+        type: 'null'
+  query:
+    oneOf:
+      - type: string
+        description: 'Query string to be used with the cells dataframe.'
+      - type: object
+        description: 'Dictionary of columns and values to be selected in the cells dataframe.'
+  distr:
+    oneOf:
+      - type: array
+        items:
+          - type: string
+            description: 'Random distribution name.'
+          - type: object
+            description: 'Random distribution parameters.'
+        additionalItems: false
+      - type: string
+        description: 'Json representation of the random distribution name and parameters.'
+  axis:
+    enum: [x, y, z]
+    description: 'Rotation axis.'

@@ -17,32 +17,15 @@ import pandas as pd
 import morph_tool.transform as mt
 from morph_tool.graft import find_axon, graft_axon
 from morph_tool.loader import MorphLoader
-
 from voxcell import OrientationField
 from voxcell.nexus.voxelbrain import Atlas
 
 from placement_algorithm.app import utils
 from placement_algorithm.app.mpi_app import MasterApp, WorkerApp
 from placement_algorithm.logger import LOGGER
-
-
-def _assign_orientations(cells, atlas):
-    """
-    Assign cell orientations to CellCollection based on atlas orientation field.
-
-    Apply random rotation around Y-axis.
-
-    Args:
-        cells: CellCollection to be augmented
-        atlas: VoxelBrain atlas with 'orientation' dataset
-
-    No return value; `cells` is input/output argument.
-    """
-    orientation_field = atlas.load_data('orientation', cls=OrientationField)
-    cells.orientations = utils.multiply_matrices(
-        orientation_field.lookup(cells.positions),
-        utils.random_rotation_y(n=len(cells.positions))
-    )
+from placement_algorithm.rotation import assign_orientations
+from placement_algorithm.utils import resource_path
+from placement_algorithm.validation import validate_config
 
 
 class Master(MasterApp):
@@ -51,7 +34,7 @@ class Master(MasterApp):
     def parse_args():
         """ Parse command line arguments. """
         parser = argparse.ArgumentParser(
-            description="Choose morphologies using 'placement hints'."
+            description="Assign morphologies from a list of cells IDs and morphologies."
         )
         parser.add_argument(
             "--mvd3", help="Deprecated! Path to input MVD3 file. Use --cells-path instead."
@@ -118,6 +101,13 @@ class Master(MasterApp):
             default=0.0
         )
         parser.add_argument(
+            "--rotations",
+            help="Path to the configuration file used for rotations. "
+                 "If the file is not specified, apply by default "
+                 "a random rotation with uniform angle distribution around "
+                 "the Y-axis (the principal direction of the morphology)."
+        )
+        parser.add_argument(
             "--no-mpi",
             help="Do not use MPI and run everything on a single core.",
             action='store_true',
@@ -164,8 +154,19 @@ class Master(MasterApp):
         np.random.seed(args.seed)
 
         LOGGER.info("Assigning CellCollection 'orientation' property...")
+        rotations = None
+        if args.rotations:
+            rotations = utils.load_yaml(args.rotations)
+            schema = utils.load_yaml(resource_path("data/schemas/rotations.yaml"))
+            validate_config(rotations, schema=schema)
+
         atlas = Atlas.open(args.atlas, cache_dir=args.atlas_cache)
-        _assign_orientations(self.cells, atlas)
+        orientation_field = atlas.load_data("orientation", cls=OrientationField)
+        assign_orientations(
+            cells=self.cells,
+            orientations=orientation_field.lookup(self.cells.positions),
+            config=rotations,
+        )
 
         LOGGER.info("Verifying morphology list(s)...")
         self._check_morph_lists(
@@ -289,7 +290,7 @@ def main():
             """)
         app = Master()
         app.setup(args)
-        app.finalize(morph_list['morphology'])
+        app.finalize(morph_list['morphology'])  # pylint: disable=unsubscriptable-object
 
 
 if __name__ == '__main__':

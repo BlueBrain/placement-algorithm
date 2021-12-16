@@ -1,4 +1,6 @@
 *.pyc
+*.swp
+coverage.xml
 venv
 doc/build
 .idea

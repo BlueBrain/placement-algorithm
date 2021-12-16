@@ -177,7 +177,7 @@ def _run(App, args):
     if args.no_mpi:
         run_master(App(), args, None)
     else:
-        from mpi4py import MPI  # pylint: disable=import-error
+        from mpi4py import MPI  # pylint: disable=no-name-in-module
         COMM = MPI.COMM_WORLD
         if COMM.Get_size() < 2:
             raise RuntimeError(

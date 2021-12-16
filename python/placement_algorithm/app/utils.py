@@ -12,13 +12,14 @@ import numpy as np
 import pandas as pd
 
 import morphio
+import yaml
 from voxcell import CellCollection
 
 from placement_algorithm.logger import LOGGER
 
 
 def setup_logger():
-    """ Setup application logger. """
+    """Setup application logger."""
     logging.basicConfig(
         format="%(asctime)s;%(levelname)s;%(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S",
@@ -28,9 +29,15 @@ def setup_logger():
 
 
 def load_json(filepath):
-    """ Load JSON file. """
-    with open(filepath) as f:
+    """Load JSON file."""
+    with open(filepath, mode="r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def load_yaml(filepath):
+    """Load YAML file."""
+    with open(filepath, mode="r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
 
 
 def load_cells(filepath, mvd3_filepath=None):
@@ -66,38 +73,6 @@ def save_cells(cells, filepath, mvd3_filepath=None):
         raise ValueError('`--out-cells-path` option is required')
     else:
         cells.save(filepath)
-
-
-def random_rotation_y(n):
-    """
-    Random rotation around Y-axis.
-
-    Args:
-        n: number of rotation matrices to generate
-
-    Returns:
-        n x 3 x 3 NumPy array with rotation matrices.
-    """
-    # copied from `brainbuilder.cell_orientations` to avoid a heavy dependency
-    # consider reusing `brainbuilder` methods if we need something more general
-    # (like user-defined distributions for rotation angles)
-    from voxcell.math_utils import angles_to_matrices
-    angles = np.random.uniform(-np.pi, np.pi, size=n)
-    return angles_to_matrices(angles, axis='y')
-
-
-def multiply_matrices(A, B):
-    """
-    Vectorized matrix multiplication.
-
-    Args:
-        A: NumPy array of shape n x A x B
-        B: NumPy array of shape n x B x C
-
-    Returns:
-        [np.dot(A[i], B[i]) for i in 0..n-1]
-    """
-    return np.einsum('...ij,...jk->...ik', A, B)
 
 
 def get_layer_profile(xyz, atlas, layer_names):

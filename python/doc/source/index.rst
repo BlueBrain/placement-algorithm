@@ -232,26 +232,114 @@ Parameters
 assign-morphologies
 -------------------
 
-Write morphologies from TSV list obtained with ``choose-morphologies`` to MVD3.
+Write morphologies from TSV list obtained with ``choose-morphologies`` to SONATA.
 
-Also, assign orientation for each cell position based on atlas orientation field (applying additional random rotation around Y-axis).
+More in detail:
+- read the morphologies from the TSV list created with ``choose-morphologies``,
+- apply a random rotation around Y-axis (the principal direction of the morphology) for each cell,
+- apply the rotation defined in the atlas orientation field,
+- write the result to SONATA file.
 
-``--max-drop-ratio`` option limits the ratio of ``N/A``s per mtype allowed in the input TSV list.
-If for none of the mtypes the ratio of ``N/A``s exceeds this limit, cells with ``N/A`` morphologies are dropped from the resulting MVD3.
-Please note that if at least one cell is dropped, MVD3 would be re-indexed to preserve continuous range of cell IDs.
-If not specified, ``--max-drop-ratio`` defaults to zero (i.e., no ``N/A`` allowed).
+By default, the random rotation is a uniform angle distribution between ``-pi`` and ``+pi``.
+It can be customized or avoided using the ``--rotations`` parameter described below.
+
+The ``--max-drop-ratio`` option limits the ratio of ``N/A`` morphologies per mtype allowed
+in the input TSV list. If not specified, it defaults to zero (i.e., no ``N/A`` allowed).
+
+- If the ratio of ``N/A`` exceeds the limit for any mtype, then the program is terminated and a
+  message is printed, indicating the mtypes for which the ``N/A`` ratio exceeded the limit.
+- If the ratio of ``N/A`` doesn't exceed the limit for any mtype, then any cell with ``N/A``
+  morphology is dropped from the resulting SONATA file.
+  If at least one cell is dropped, the resulting file will be re-indexed to preserve continuous
+  range of cell IDs.
 
 
 Parameters
 ~~~~~~~~~~
 
-    --mvd3            Path to input MVD3 file [required]
-    --morph           TSV file with morphology list [required]
-    --atlas           Atlas URL [required]
-    --atlas-cache     Atlas cache folder [optional, default: None]
-    --max-drop-ratio  Max drop ratio for any mtype [optional, default: 0.0]
-    --seed            Random number generator seed [optional, default: 0]
-    --out-mvd3        Path to output MVD3 file [required]
+      --cells-path CELLS_PATH                Path to a file storing cells collection [required]
+      --morph MORPH                          TSV file with morphology list [required]
+      --morph-axon MORPH_AXON                TSV file with axon morphology list (for grafting) [default: None]
+      --base-morph-dir BASE_MORPH_DIR        Path to base morphology release folder [default: None]
+      --atlas ATLAS                          Atlas URL [required]
+      --atlas-cache ATLAS_CACHE              Atlas cache folder [default: None]
+      --max-drop-ratio MAX_DROP_RATIO        Max drop ratio for any mtype  [default: 0.0]
+      --seed SEED                            Random number generator seed [default: 0]
+      --out-cells-path OUT_CELLS_PATH        Path to output cells file [required]
+      --instantiate                          Write morphology files [default: False]
+      --overwrite                            Overwrite output morphology folder [default: False]
+      --out-morph-dir OUT_MORPH_DIR          Path to output morphology folder [default: None]
+      --out-morph-ext OUT_MORPH_EXT          One or more formats to export morphologies, space separated.
+                                             Supported formats: ``h5 swc asc`` [default: ``h5``]
+      --max-files-per-dir MAX_FILES_PER_DIR  Maximum files per level for morphology output folder [default: None]
+      --rotations ROTATIONS                  Path to the configuration file used for rotations.
+                                             If the file is not specified, apply by default
+                                             a random rotation with uniform angle distribution around
+                                             the Y-axis (the principal direction of the morphology).
+                                             [default: None]
+
+
+Rotation file format
+~~~~~~~~~~~~~~~~~~~~
+
+The file that can be used with the ``--rotations`` parameter must by a YAML file
+like in the following example:
+
+.. code-block:: yaml
+
+    rotations:
+      - query: "mtype=='L23_MC'"
+        distr: ["uniform", {"low": -3.14159, "high": 3.14159}]
+        axis: y
+      - query: "mtype=='L5_TPC:A' & etype=='bAC'"
+        distr: ["norm", {"mean": 0.0, "sd": 1.0}]
+        axis: y
+      - query: {"mtype": "L5_TPC:B"}
+        distr: ["vonmises", {"mu": 1.04720, "kappa": 2}]
+        axis: y
+      - query: "mtype=='L5_TPC:C'"
+        distr: null
+    default_rotation:
+      distr: ["truncnorm", {"mean": 0.0, "sd": 1.0, "low": -3.14159, "high": 3.14159}]
+      axis: y
+
+Notes:
+
+- The rotation defined in each rule is applied only to the cells matching the given ``query``.
+- The rotations are applied in the same order as defined by the rules.
+- If multiple rules affect the same cells, the rules defined later prevail over the former.
+- The rotation rules are processed and logged in reverse order.
+- A default rotation can be defined, and it's applied to all the cells not affected by the other rules.
+- Axis can be one of ``x, y, z``. The same cells cannot be rotated multiple times around different
+  axis (for example, rotate around ``y`` then rotate around ``z``).
+- Angles are defined according to the right-hand rule: they have positive values when they represent
+  a rotation that appears clockwise when looking in the positive direction of the axis,
+  and negative values when the rotation appears counter-clockwise.
+- The value of ``query`` can be:
+
+  - a string, that's passed unchanged to the cells DataFrame using its query method
+  - a dictionary, that's used to select the cells that match all the conditions.
+
+- The value of ``distr`` is a list of two elements:
+
+  - the first element is the name of the distribution
+  - the second element is a dictionary containing the parameters of the distribution,
+    where **any angle should be specified in radians**.
+
+- See `Defining distributions in config files <https://bbpteam.epfl.ch/project/spaces/display/BBPNSE/Defining+distributions+in+config+files>`_
+  for more details about the format of the distributions.
+- See `Statistical functions <https://docs.scipy.org/doc/scipy/reference/stats.html>`_ in SciPy
+  for the list of supported distributions, but note the following functions are wrapped
+  and the parameters can be specified according to the following definitions:
+
+  - ``norm(mean, sd)``
+  - ``truncnorm(mean, sd, low, high)``
+  - ``uniform(low, high)``
+  - ``vonmises(mu, kappa)``
+
+- If the value of ``distr`` is ``null``, then no rotation is applied to the selection of cells.
+  This can be used for example when a default rotation is defined, and only a few morphologies
+  shouldn't be rotated. When ``distr`` is ``null``, ``axis`` should be omitted.
 
 
 dump-profiles
@@ -391,45 +479,6 @@ Usually mtype rules are interval overlap rules.
 
 Rule IDs should be unique within mtype rule set, and should not overlap with global rule IDs.
 
-
-Global rotation
-~~~~~~~~~~~~~~~
-
-.. warning::
-
-  | This functionality is temporarily not available; random rotation around Y-axis is used indiscriminately for all cells.
-  | Please contact NSE team if you need fine control over rotation angles.
-
-Defined in ``<global_rotation>`` element (no attributes), which can appear no more than once in XML file.
-It specifies rotation for *all* the cells, for which there are no mtype-specific rotation rules (see below).
-
-Contains one or several ``<rotation>`` element(s), each one specifying rotation axis and random distribution to draw angles from (in radians). Please refer to `this page <https://bbpteam.epfl.ch/project/spaces/display/BBPNSE/Defining+distributions+in+config+files>`_ for instructions how to specify distribution.
-
-.. code-block:: xml
-
-    <!-- uniform random rotation around Y-axis -->
-    <rotation axis="y" distr='["uniform", {"low": -3.14159, "high": 3.14159}]' />
-
-Rotations are applied sequentially as they appear in XML file.
-
-
-Mtype rotations
-~~~~~~~~~~~~~~~
-
-.. warning::
-
-  | This functionality is temporarily not available; random rotation around Y-axis is used indiscriminately for all cells.
-  | Please contact NSE team if you need fine control over rotation angles.
-
-Defined in ``<mtype_rotation>`` elements, which can appear multiple times in XML file.
-Each element should have ``mtype`` attribute with the associated mtype (or `|`-separated list of mtypes).
-No mtype can appear in more than one ``<mtype_rotation>``.
-
-The content of each element is analogous to ``<global_rotation>``.
-
-Mtype-specific rotations *override* global ones (not combined with those).
-
-
 Example
 ~~~~~~~
 
@@ -446,16 +495,6 @@ Example
         <rule id="dendrite, Layer_1"  type="region_target" segment_type="dendrite" y_min_layer="1" y_min_fraction="0.00" y_max_layer="1" y_max_fraction="1.00" />
         <rule id="axon, Layer_1" type="region_target" segment_type="axon" y_min_layer="1" y_min_fraction="0.00" y_max_layer="1" y_max_fraction="1.00" />
       </mtype_rule_set>
-
-      <global_rotation>
-        <!-- uniform random rotation around Y-axis -->
-        <rotation axis="y" distr='["uniform", {"a": -3.14159, "b": 3.14159}]' />
-      </global_rotation>
-
-      <mtype_rotation mtype="L1_SAC">
-        <!-- suppress random rotation -->
-      </mtype_rotation>
-
 
     </placement_rules>
 
