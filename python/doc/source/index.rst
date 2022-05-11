@@ -235,6 +235,7 @@ assign-morphologies
 Write morphologies from TSV list obtained with ``choose-morphologies`` to SONATA.
 
 More in detail:
+
 - read the morphologies from the TSV list created with ``choose-morphologies``,
 - apply a random rotation around Y-axis (the principal direction of the morphology) for each cell,
 - apply the rotation defined in the atlas orientation field,
