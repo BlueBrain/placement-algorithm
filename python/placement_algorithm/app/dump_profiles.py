@@ -64,7 +64,7 @@ def main():
         profile['etype'] = cells.properties['etype'][gid]
         profile['gid'] = gid
         if 'layer' in cells.properties:
-            profile['layer'] = cells.properties['layer'][gid]
+            profile['layer'] = str(cells.properties['layer'][gid])
 
         print(json.dumps(profile))
 
