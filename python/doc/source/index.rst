@@ -197,7 +197,7 @@ We will briefly list them below.
 choose-morphologies
 -------------------
 
-Choose morphologies using the algorithm described above for all positions in a given `MVD3 <https://bbpteam.epfl.ch/documentation/Circuit%20Documentation-0.0.1/mvd3.html>`_ file; and dump output to TSV file like:
+Choose morphologies using the algorithm described above for all positions in a given nodes file file; and dump output to TSV file like:
 
 ::
 

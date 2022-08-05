@@ -29,6 +29,8 @@ setup(
     author_email="bbp-ou-nse@groupes.epfl.ch",
     version=VERSION,
     description="Morphology placement algorithm",
+    long_description="Morphology placement algorithm",
+    long_description_content_type="text/plain",
     url="https://bbpteam.epfl.ch/project/issues/projects/NSETM/issues",
     download_url="https://bbpteam.epfl.ch/repository/devpi/+search?query=name%3Aplacement-algorithm",
     license="BBP-internal-confidential",
