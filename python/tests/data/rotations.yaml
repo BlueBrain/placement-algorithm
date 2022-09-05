@@ -1,17 +1,21 @@
 rotations:
   - query: "mtype=='L23_MC'"
-    distr: ["uniform", {"a": -3.14159, "b": 3.14159}]
-    axis: y
+    rotations_by_axis:
+      - distr: ["uniform", {"a": -3.14159, "b": 3.14159}]
+        axis: y
   - query: "mtype=='L5_TPC:A' & etype=='bAC'"
-    distr: ["normal", {"mean": 0.0, "sd": 1.0}]
-    axis: y
+    rotations_by_axis:
+      - distr: ["normal", {"mean": 0.0, "sd": 1.0}]
+        axis: y
   - query:
       mtype: 'L5_TPC:B'
       etype: 'bAC'
-    distr: ["normal", {"mean": 0.0, "sd": 1.0}]
-    axis: y
+    rotations_by_axis:
+      - distr: ["normal", {"mean": 0.0, "sd": 1.0}]
+        axis: y
   - query: "mtype=='L5_TPC:C'"
-    distr: null
+    rotations_by_axis: null
 default_rotation:
-  distr: ["uniform", {"a": -3.14159, "b": 3.14159}]
-  axis: y
+  rotations_by_axis:
+    - distr: ["uniform", {"a": -3.14159, "b": 3.14159}]
+      axis: y

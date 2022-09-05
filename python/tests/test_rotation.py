@@ -88,9 +88,11 @@ def _get_properties():
 def _parse_distr_side_effect(name):
     """Return a mock of a SciPy random variable, providing only the `rvs` method."""
     return {
-        "distr1": MagicMock(rvs=lambda size: np.array([np.pi / 2, np.pi / 4])),
-        "distr2": MagicMock(rvs=lambda size: np.array([np.pi, -np.pi / 2, -np.pi / 4])),
-        "distr3": MagicMock(rvs=lambda size: np.array([-np.pi / 3, np.pi / 3, -np.pi / 6])),
+        "distr_2a": MagicMock(rvs=lambda size: np.array([np.pi / 2, np.pi / 4])),
+        "distr_2b": MagicMock(rvs=lambda size: np.array([np.pi / 5, -np.pi / 7])),
+        "distr_2c": MagicMock(rvs=lambda size: np.array([np.pi / 11, np.pi / 13])),
+        "distr_3a": MagicMock(rvs=lambda size: np.array([np.pi, -np.pi / 2, -np.pi / 4])),
+        "distr_3b": MagicMock(rvs=lambda size: np.array([-np.pi / 3, np.pi / 3, -np.pi / 6])),
     }[name]
 
 
@@ -119,7 +121,7 @@ def test_assign_orientations_with_uniform_rotation(uniform_mock):
     uniform_mock.return_value = angles
     expected_orientations = np.array(
         [
-            np.dot(atlas_orientations[i], Rotation.from_euler("y", a).as_matrix())
+            atlas_orientations[i] @ Rotation.from_euler("y", a).as_matrix()
             for i, a in enumerate(angles)
         ]
     )
@@ -138,26 +140,26 @@ def test_assign_orientations_with_custom_rotation_right_handed(parse_distr_mock)
     q2 = "num == [0, 3, 7]"
     rotations = {
         "rotations": [
-            {"query": q1, "axis": "y", "distr": "distr1"},
-            {"query": q2, "axis": "y", "distr": "distr2"},
+            {"query": q1, "rotations_by_axis": [{"axis": "y", "distr": "distr_2a"}]},
+            {"query": q2, "rotations_by_axis": [{"axis": "y", "distr": "distr_3a"}]},
         ]
     }
     expected_orientations = np.array(
         [
-            np.dot(atlas_orientations[0], Rotation.from_euler("y", np.pi).as_matrix()),
+            atlas_orientations[0] @ Rotation.from_euler("y", np.pi).as_matrix(),
             atlas_orientations[1],
             atlas_orientations[2],
-            np.dot(atlas_orientations[3], Rotation.from_euler("y", -np.pi / 2).as_matrix()),
-            np.dot(atlas_orientations[4], Rotation.from_euler("y", np.pi / 2).as_matrix()),
-            np.dot(atlas_orientations[5], Rotation.from_euler("y", np.pi / 4).as_matrix()),
+            atlas_orientations[3] @ Rotation.from_euler("y", -np.pi / 2).as_matrix(),
+            atlas_orientations[4] @ Rotation.from_euler("y", np.pi / 2).as_matrix(),
+            atlas_orientations[5] @ Rotation.from_euler("y", np.pi / 4).as_matrix(),
             atlas_orientations[6],
-            np.dot(atlas_orientations[7], Rotation.from_euler("y", -np.pi / 4).as_matrix()),
+            atlas_orientations[7] @ Rotation.from_euler("y", -np.pi / 4).as_matrix(),
         ]
     )
 
     test_module.assign_orientations(cells, orientations=atlas_orientations, config=rotations)
 
-    assert parse_distr_mock.call_args_list == [call("distr2"), call("distr1")]
+    assert parse_distr_mock.call_args_list == [call("distr_3a"), call("distr_2a")]
     assert_array_almost_equal(cells.orientations, expected_orientations)
 
 
@@ -170,26 +172,26 @@ def test_assign_orientations_with_custom_rotation_and_overlapping(parse_distr_mo
     q2 = "num == [0, 3, 7]"
     rotations = {
         "rotations": [
-            {"query": q1, "axis": "y", "distr": "distr1"},
-            {"query": q2, "axis": "y", "distr": "distr2"},
+            {"query": q1, "rotations_by_axis": [{"axis": "y", "distr": "distr_2a"}]},
+            {"query": q2, "rotations_by_axis": [{"axis": "y", "distr": "distr_3a"}]},
         ]
     }
     expected_orientations = np.array(
         [
-            np.dot(atlas_orientations[0], Rotation.from_euler("y", np.pi).as_matrix()),
+            atlas_orientations[0] @ Rotation.from_euler("y", np.pi).as_matrix(),
             atlas_orientations[1],
             atlas_orientations[2],
-            np.dot(atlas_orientations[3], Rotation.from_euler("y", -np.pi / 2).as_matrix()),
-            np.dot(atlas_orientations[4], Rotation.from_euler("y", np.pi / 2).as_matrix()),
-            np.dot(atlas_orientations[5], Rotation.from_euler("y", np.pi / 4).as_matrix()),
+            atlas_orientations[3] @ Rotation.from_euler("y", -np.pi / 2).as_matrix(),
+            atlas_orientations[4] @ Rotation.from_euler("y", np.pi / 2).as_matrix(),
+            atlas_orientations[5] @ Rotation.from_euler("y", np.pi / 4).as_matrix(),
             atlas_orientations[6],
-            np.dot(atlas_orientations[7], Rotation.from_euler("y", -np.pi / 4).as_matrix()),
+            atlas_orientations[7] @ Rotation.from_euler("y", -np.pi / 4).as_matrix(),
         ]
     )
 
     test_module.assign_orientations(cells, orientations=atlas_orientations, config=rotations)
 
-    assert parse_distr_mock.call_args_list == [call("distr2"), call("distr1")]
+    assert parse_distr_mock.call_args_list == [call("distr_3a"), call("distr_2a")]
     assert_array_almost_equal(cells.orientations, expected_orientations)
 
 
@@ -201,27 +203,27 @@ def test_assign_orientations_with_custom_rotation_and_default_fallback(parse_dis
     q2 = "num == [0, 3, 7]"
     rotations = {
         "rotations": [
-            {"query": q1, "axis": "y", "distr": "distr1"},
-            {"query": q2, "axis": "y", "distr": "distr2"},
+            {"query": q1, "rotations_by_axis": [{"axis": "y", "distr": "distr_2a"}]},
+            {"query": q2, "rotations_by_axis": [{"axis": "y", "distr": "distr_3a"}]},
         ],
-        "default_rotation": {"axis": "y", "distr": "distr3"},
+        "default_rotation": {"rotations_by_axis": [{"axis": "y", "distr": "distr_3b"}]},
     }
     expected_orientations = np.array(
         [
-            np.dot(atlas_orientations[0], Rotation.from_euler("y", np.pi).as_matrix()),
-            np.dot(atlas_orientations[1], Rotation.from_euler("y", -np.pi / 3).as_matrix()),
-            np.dot(atlas_orientations[2], Rotation.from_euler("y", np.pi / 3).as_matrix()),
-            np.dot(atlas_orientations[3], Rotation.from_euler("y", -np.pi / 2).as_matrix()),
-            np.dot(atlas_orientations[4], Rotation.from_euler("y", np.pi / 2).as_matrix()),
-            np.dot(atlas_orientations[5], Rotation.from_euler("y", np.pi / 4).as_matrix()),
-            np.dot(atlas_orientations[6], Rotation.from_euler("y", -np.pi / 6).as_matrix()),
-            np.dot(atlas_orientations[7], Rotation.from_euler("y", -np.pi / 4).as_matrix()),
+            atlas_orientations[0] @ Rotation.from_euler("y", np.pi).as_matrix(),
+            atlas_orientations[1] @ Rotation.from_euler("y", -np.pi / 3).as_matrix(),
+            atlas_orientations[2] @ Rotation.from_euler("y", np.pi / 3).as_matrix(),
+            atlas_orientations[3] @ Rotation.from_euler("y", -np.pi / 2).as_matrix(),
+            atlas_orientations[4] @ Rotation.from_euler("y", np.pi / 2).as_matrix(),
+            atlas_orientations[5] @ Rotation.from_euler("y", np.pi / 4).as_matrix(),
+            atlas_orientations[6] @ Rotation.from_euler("y", -np.pi / 6).as_matrix(),
+            atlas_orientations[7] @ Rotation.from_euler("y", -np.pi / 4).as_matrix(),
         ]
     )
 
     test_module.assign_orientations(cells, orientations=atlas_orientations, config=rotations)
 
-    assert parse_distr_mock.call_args_list == [call("distr2"), call("distr1"), call("distr3")]
+    assert parse_distr_mock.call_args_list == [call("distr_3a"), call("distr_2a"), call("distr_3b")]
     assert_array_almost_equal(cells.orientations, expected_orientations)
 
 
@@ -233,26 +235,68 @@ def test_assign_orientations_with_custom_rotation_and_different_axis(parse_distr
     q2 = "num == [0, 3, 7]"
     rotations = {
         "rotations": [
-            {"query": q1, "axis": "x", "distr": "distr1"},
-            {"query": q2, "axis": "z", "distr": "distr2"},
+            {"query": q1, "rotations_by_axis": [{"axis": "x", "distr": "distr_2a"}]},
+            {"query": q2, "rotations_by_axis": [{"axis": "z", "distr": "distr_3a"}]},
         ],
     }
     expected_orientations = np.array(
         [
-            np.dot(atlas_orientations[0], Rotation.from_euler("z", np.pi).as_matrix()),
+            atlas_orientations[0] @ Rotation.from_euler("z", np.pi).as_matrix(),
             atlas_orientations[1],
             atlas_orientations[2],
-            np.dot(atlas_orientations[3], Rotation.from_euler("z", -np.pi / 2).as_matrix()),
-            np.dot(atlas_orientations[4], Rotation.from_euler("x", np.pi / 2).as_matrix()),
-            np.dot(atlas_orientations[5], Rotation.from_euler("x", np.pi / 4).as_matrix()),
+            atlas_orientations[3] @ Rotation.from_euler("z", -np.pi / 2).as_matrix(),
+            atlas_orientations[4] @ Rotation.from_euler("x", np.pi / 2).as_matrix(),
+            atlas_orientations[5] @ Rotation.from_euler("x", np.pi / 4).as_matrix(),
             atlas_orientations[6],
-            np.dot(atlas_orientations[7], Rotation.from_euler("z", -np.pi / 4).as_matrix()),
+            atlas_orientations[7] @ Rotation.from_euler("z", -np.pi / 4).as_matrix(),
         ]
     )
 
     test_module.assign_orientations(cells, orientations=atlas_orientations, config=rotations)
 
-    assert parse_distr_mock.call_args_list == [call("distr2"), call("distr1")]
+    assert parse_distr_mock.call_args_list == [call("distr_3a"), call("distr_2a")]
+    assert_array_almost_equal(cells.orientations, expected_orientations)
+
+
+@patch(test_module.__name__ + ".parse_distr", side_effect=_parse_distr_side_effect)
+def test_assign_orientations_with_custom_rotation_and_multiple_axis(parse_distr_mock):
+    cells = _cells_mock()
+    atlas_orientations = _get_atlas_orientations()
+    q1 = "num == [4, 5]"
+    rotations = {
+        "rotations": [
+            {
+                "query": q1,
+                "rotations_by_axis": [
+                    {"axis": "y", "distr": "distr_2a"},
+                    {"axis": "x", "distr": "distr_2b"},
+                    {"axis": "z", "distr": "distr_2c"},
+                ],
+            },
+        ],
+    }
+    expected_orientations = np.array(
+        [
+            atlas_orientations[0],
+            atlas_orientations[1],
+            atlas_orientations[2],
+            atlas_orientations[3],
+            atlas_orientations[4]
+            @ Rotation.from_euler("z", np.pi / 11).as_matrix()
+            @ Rotation.from_euler("x", np.pi / 5).as_matrix()
+            @ Rotation.from_euler("y", np.pi / 2).as_matrix(),
+            atlas_orientations[5]
+            @ Rotation.from_euler("z", np.pi / 13).as_matrix()
+            @ Rotation.from_euler("x", -np.pi / 7).as_matrix()
+            @ Rotation.from_euler("y", np.pi / 4).as_matrix(),
+            atlas_orientations[6],
+            atlas_orientations[7],
+        ]
+    )
+
+    test_module.assign_orientations(cells, orientations=atlas_orientations, config=rotations)
+
+    assert parse_distr_mock.call_args_list == [call("distr_2a"), call("distr_2b"), call("distr_2c")]
     assert_array_almost_equal(cells.orientations, expected_orientations)
 
 
@@ -264,26 +308,26 @@ def test_assign_orientations_with_empty_selection(parse_distr_mock):
     q2 = "num == [0, 3, 7]"
     rotations = {
         "rotations": [
-            {"query": q1, "axis": "y", "distr": "distr1"},
-            {"query": q2, "axis": "y", "distr": "distr2"},
+            {"query": q1, "rotations_by_axis": [{"axis": "y", "distr": "distr_2a"}]},
+            {"query": q2, "rotations_by_axis": [{"axis": "y", "distr": "distr_3a"}]},
         ]
     }
     expected_orientations = np.array(
         [
-            np.dot(atlas_orientations[0], Rotation.from_euler("y", np.pi).as_matrix()),
+            atlas_orientations[0] @ Rotation.from_euler("y", np.pi).as_matrix(),
             atlas_orientations[1],
             atlas_orientations[2],
-            np.dot(atlas_orientations[3], Rotation.from_euler("y", -np.pi / 2).as_matrix()),
+            atlas_orientations[3] @ Rotation.from_euler("y", -np.pi / 2).as_matrix(),
             atlas_orientations[4],
             atlas_orientations[5],
             atlas_orientations[6],
-            np.dot(atlas_orientations[7], Rotation.from_euler("y", -np.pi / 4).as_matrix()),
+            atlas_orientations[7] @ Rotation.from_euler("y", -np.pi / 4).as_matrix(),
         ]
     )
 
     test_module.assign_orientations(cells, orientations=atlas_orientations, config=rotations)
 
-    assert parse_distr_mock.call_args_list == [call("distr2")]  # distr1 is not called
+    assert parse_distr_mock.call_args_list == [call("distr_3a")]  # distr_2a is not called
     assert_array_almost_equal(cells.orientations, expected_orientations)
 
 
@@ -295,25 +339,25 @@ def test_assign_orientations_with_null_distr(parse_distr_mock):
     q2 = "num == [0, 3, 7]"
     rotations = {
         "rotations": [
-            {"query": q1, "distr": None},
-            {"query": q2, "axis": "y", "distr": "distr2"},
+            {"query": q1, "rotations_by_axis": None},
+            {"query": q2, "rotations_by_axis": [{"axis": "y", "distr": "distr_3a"}]},
         ],
-        "default_rotation": {"axis": "y", "distr": "distr3"},
+        "default_rotation": {"rotations_by_axis": [{"axis": "y", "distr": "distr_3b"}]},
     }
     expected_orientations = np.array(
         [
-            np.dot(atlas_orientations[0], Rotation.from_euler("y", np.pi).as_matrix()),
-            np.dot(atlas_orientations[1], Rotation.from_euler("y", -np.pi / 3).as_matrix()),
-            np.dot(atlas_orientations[2], Rotation.from_euler("y", np.pi / 3).as_matrix()),
-            np.dot(atlas_orientations[3], Rotation.from_euler("y", -np.pi / 2).as_matrix()),
+            atlas_orientations[0] @ Rotation.from_euler("y", np.pi).as_matrix(),
+            atlas_orientations[1] @ Rotation.from_euler("y", -np.pi / 3).as_matrix(),
+            atlas_orientations[2] @ Rotation.from_euler("y", np.pi / 3).as_matrix(),
+            atlas_orientations[3] @ Rotation.from_euler("y", -np.pi / 2).as_matrix(),
             atlas_orientations[4],
             atlas_orientations[5],
-            np.dot(atlas_orientations[6], Rotation.from_euler("y", -np.pi / 6).as_matrix()),
-            np.dot(atlas_orientations[7], Rotation.from_euler("y", -np.pi / 4).as_matrix()),
+            atlas_orientations[6] @ Rotation.from_euler("y", -np.pi / 6).as_matrix(),
+            atlas_orientations[7] @ Rotation.from_euler("y", -np.pi / 4).as_matrix(),
         ]
     )
 
     test_module.assign_orientations(cells, orientations=atlas_orientations, config=rotations)
 
-    assert parse_distr_mock.call_args_list == [call("distr2"), call("distr3")]
+    assert parse_distr_mock.call_args_list == [call("distr_3a"), call("distr_3b")]
     assert_array_almost_equal(cells.orientations, expected_orientations)

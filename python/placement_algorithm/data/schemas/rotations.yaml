@@ -11,13 +11,9 @@ properties:
     uniqueItems: true
     minItems: 1
     items:
-      oneOf:
-        - $ref: '#/$defs/rotation_by_query'
-        - $ref: '#/$defs/no_rotation_by_query'
+      $ref: '#/$defs/rotation_by_query'
   default_rotation:
-    oneOf:
-      - $ref: '#/$defs/rotation_by_default'
-      - $ref: '#/$defs/no_rotation_by_default'
+    $ref: '#/$defs/rotation_by_default'
 
 $defs:
   rotation_by_query:
@@ -25,45 +21,35 @@ $defs:
     additionalProperties: false
     required:
       - query
-      - distr
-      - axis
+      - rotations_by_axis
     properties:
       query:
         $ref: '#/$defs/query'
-      distr:
-        $ref: '#/$defs/distr'
-      axis:
-        $ref: '#/$defs/axis'
+      rotations_by_axis:
+        $ref: '#/$defs/rotations_by_axis'
   rotation_by_default:
     type: object
     additionalProperties: false
     required:
-      - distr
-      - axis
+      - rotations_by_axis
     properties:
-      distr:
-        $ref: '#/$defs/distr'
-      axis:
-        $ref: '#/$defs/axis'
-  no_rotation_by_query:
-    type: object
-    additionalProperties: false
-    required:
-      - query
-      - distr
-    properties:
-      query:
-        $ref: '#/$defs/query'
-      distr:
-        type: 'null'
-  no_rotation_by_default:
-    type: object
-    additionalProperties: false
-    required:
-      - distr
-    properties:
-      distr:
-        type: 'null'
+      rotations_by_axis:
+        $ref: '#/$defs/rotations_by_axis'
+  rotations_by_axis:
+    type:
+      - 'array'
+      - 'null'
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - distr
+        - axis
+      properties:
+        distr:
+          $ref: '#/$defs/distr'
+        axis:
+          $ref: '#/$defs/axis'
   query:
     oneOf:
       - type: string
