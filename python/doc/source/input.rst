@@ -147,16 +147,11 @@ YAML file that can be used with the ``--rotations`` parameter of ``assign-morpho
 - The rotation defined in each rule is applied only to the cells matching the given ``query``.
 - The rotations are applied in the same order as defined by the rules.
 - If multiple rules affect the same cells, the rules defined later prevail over the former.
-- The rotation rules are processed and logged in reverse order.
+- Due to the internal implementation, the rotation rules are logged in reverse order. This may change in the future.
 - A default rotation can be defined, and it's applied to all the cells not affected by the other rules.
-- Axis can be one of ``x, y, z``. The same cells cannot be rotated multiple times around different
-  axis (for example, rotate around ``y`` then rotate around ``z``).
-- Angles are defined according to the right-hand rule: they have positive values when they represent
-  a rotation that appears clockwise when looking in the positive direction of the axis,
-  and negative values when the rotation appears counter-clockwise.
 - The value of ``query`` can be:
 
-  - a string, that's passed unchanged to the cells DataFrame using its query method
+  - a string, that's passed unchanged to filter the cells DataFrame using its query method
   - a dictionary, that's used to select the cells that match all the conditions.
 
 - The value of ``distr`` is a list of two elements:
@@ -165,6 +160,12 @@ YAML file that can be used with the ``--rotations`` parameter of ``assign-morpho
   - the second element is a dictionary containing the parameters of the distribution,
     where **any angle should be specified in radians**.
 
+- The value of ``axis`` can be any of ``x``, ``y``, ``z``.
+- To rotate the same cells around different axis (for example, rotate around ``y`` then rotate around ``z``),
+  it's possible to specify multiple entries under ``rotations_by_axis`` in the desired order.
+- Angles are defined according to the right-hand rule: they have positive values when they represent
+  a rotation that appears clockwise when looking in the positive direction of the axis,
+  and negative values when the rotation appears counter-clockwise.
 - See `Defining distributions in config files <https://bbpteam.epfl.ch/project/spaces/display/BBPNSE/Defining+distributions+in+config+files>`_
   for more details about the format of the distributions.
 - See `Statistical functions <https://docs.scipy.org/doc/scipy/reference/stats.html>`_ in SciPy
@@ -176,9 +177,9 @@ YAML file that can be used with the ``--rotations`` parameter of ``assign-morpho
   - ``uniform(low, high)``
   - ``vonmises(mu, kappa)``
 
-- If the value of ``distr`` is ``null``, then no rotation is applied to the selection of cells.
+- If the value of ``rotations_by_axis`` is ``null`` or an empty list, then no rotation is applied to the selection of cells.
   This can be used for example when a default rotation is defined, and only a few morphologies
-  shouldn't be rotated. When ``distr`` is ``null``, ``axis`` should be omitted.
+  shouldn't be rotated.
 
 Example
 ~~~~~~~
@@ -187,16 +188,22 @@ Example
 
     rotations:
       - query: "mtype=='L23_MC'"
-        distr: ["uniform", {"low": -3.14159, "high": 3.14159}]
-        axis: y
+        rotations_by_axis:
+          - distr: ["uniform", {"low": -3.14159, "high": 3.14159}]
+            axis: y
       - query: "mtype=='L5_TPC:A' & etype=='bAC'"
-        distr: ["norm", {"mean": 0.0, "sd": 1.0}]
-        axis: y
+        rotations_by_axis:
+          - distr: ["norm", {"mean": 0.0, "sd": 1.0}]
+            axis: y
       - query: {"mtype": "L5_TPC:B"}
-        distr: ["vonmises", {"mu": 1.04720, "kappa": 2}]
-        axis: y
+        rotations_by_axis:
+          - distr: ["vonmises", {"mu": 1.04720, "kappa": 2}]
+            axis: y
+          - distr: ["vonmises", {"mu": 1.23456, "kappa": 2}]
+            axis: z
       - query: "mtype=='L5_TPC:C'"
-        distr: null
+        rotations_by_axis: null
     default_rotation:
-      distr: ["truncnorm", {"mean": 0.0, "sd": 1.0, "low": -3.14159, "high": 3.14159}]
-      axis: y
+      rotations_by_axis:
+        - distr: ["truncnorm", {"mean": 0.0, "sd": 1.0, "low": -3.14159, "high": 3.14159}]
+          axis: y
