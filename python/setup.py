@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import importlib.util
 
-from setuptools import setup, find_packages
+from setuptools import find_namespace_packages, setup
 
 spec = importlib.util.spec_from_file_location(
     "placement_algorithm.version",
@@ -47,7 +47,7 @@ setup(
         'mpi': MPI_EXTRAS,
         'all': APP_EXTRAS + MPI_EXTRAS
     },
-    packages=find_packages(),
+    packages=find_namespace_packages(include=["placement_algorithm*"]),
     include_package_data=True,
     python_requires='>=3.7',
     entry_points={
@@ -66,5 +66,6 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
     ],
 )

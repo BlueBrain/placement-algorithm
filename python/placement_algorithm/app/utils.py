@@ -128,7 +128,7 @@ def check_na_morphologies(morph_list, mtypes, threshold=None):
             "N/A ratio by mtypes:\n%s", stats.to_string(float_format="%.1f")
         )
         if threshold is not None:
-            exceeded = (0.01 * stats['ratio, %'] > threshold)
+            exceeded = 0.01 * stats['ratio, %'] > threshold
             if exceeded.any():
                 ratio = 100.0 * threshold
                 failed_mtypes = ", ".join(exceeded[exceeded].index)

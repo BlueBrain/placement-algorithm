@@ -44,7 +44,7 @@ def _unique_values(df, columns):
 
 
 def _check_has_metypes(morphdb, traits):
-    key_columns = _metype_columns(with_etype=('etype' in morphdb))
+    key_columns = _metype_columns(with_etype='etype' in morphdb)
     required = _unique_values(traits, key_columns)
     missing = required - _unique_values(morphdb, key_columns)
     if missing:
@@ -66,7 +66,7 @@ def _bind_annotations(annotations, morphdb, rules):
         from `morphdb` corresponding to `m(e)type`.
     """
     result = {}
-    key_columns = _metype_columns(with_etype=('etype' in morphdb))
+    key_columns = _metype_columns(with_etype='etype' in morphdb)
     mtype_idx = key_columns.index('mtype')
     for key, group in morphdb.groupby(key_columns):
         if not isinstance(key, tuple):

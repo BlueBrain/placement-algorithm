@@ -1,4 +1,2 @@
 graft placement_algorithm/data
-graft tests
-
 global-exclude *.py[co] .DS_Store
