@@ -177,10 +177,10 @@ def test_parse_morphdb():
     actual = test_module.parse_morphdb(_test_data_path('extNeuronDB.dat'))
     expected = pd.DataFrame(
         [
-            ('C060106F', 1, 'L1_HAC', 'bAC'),
-            ('C060106F', 1, 'L1_HAC', 'cNAC'),
-            ('morph-C', 1, 'L1_HAC', 'bAC'),
-            ('morph-D', 1, 'L1_HAC', 'cNAC'),
+            ('C060106F', '1', 'L1_HAC', 'bAC'),
+            ('C060106F', '1', 'L1_HAC', 'cNAC'),
+            ('morph-C', '1', 'L1_HAC', 'bAC'),
+            ('morph-D', '1', 'L1_HAC', 'cNAC'),
         ],
         columns=['morphology', 'layer', 'mtype', 'etype']
     )

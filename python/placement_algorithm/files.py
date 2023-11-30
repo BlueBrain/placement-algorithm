@@ -137,5 +137,5 @@ def parse_morphdb(filepath):
     if first_row.shape[1] > 3:
         columns.append('etype')
     return pd.read_csv(
-        filepath, sep=r'\s+', names=columns, usecols=columns, na_filter=False
+        filepath, sep=r'\s+', names=columns, usecols=columns, na_filter=False, dtype={'layer': str}
     )
